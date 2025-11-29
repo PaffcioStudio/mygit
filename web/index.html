@@ -1,0 +1,1181 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="icon" type="image/svg+xml" 
+href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'%3E%3Cpath d='M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v3a2 2 0 0 1-2 2h-3v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1H4a2 2 0 0 1-2-2v-3H1a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2h2z'/%3E%3C/svg%3E">
+<title>mygit</title>
+
+<!-- Tailwind CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* drobne poprawki i animacje */
+  .fade-in { animation: fadeIn .18s ease both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
+
+  .modal-bg { 
+    background: rgba(15,23,42,0.6); 
+    backdrop-filter: blur(4px); 
+  }
+  
+  /* Naprawa z-index */
+  #browseOverlay { z-index: 9000 !important; }
+  #overlay { z-index: 10000 !important; }
+  
+  .file-row:hover { background-color: rgba(99,102,241,0.04); }
+  .clickable { cursor: pointer; }
+  .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  
+  /* Nowe style dla breadcrumbs */
+  .breadcrumbs-container {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  .breadcrumb-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #6366f1;
+    font-size: 13px;
+  }
+  .breadcrumb-item:not(:last-child):after {
+    content: "›";
+    color: #94a3b8;
+    margin-left: 4px;
+  }
+  .breadcrumb-item:hover {
+    text-decoration: underline;
+  }
+  .breadcrumb-root {
+    font-weight: 600;
+  }
+
+  /* Gradient backgrounds */
+  .gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  
+  .card-hover {
+    transition: all 0.3s ease;
+    border: 1px solid #e2e8f0;
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Search animation */
+  .search-container {
+    transition: all 0.3s ease;
+  }
+
+  .search-container:focus-within {
+    transform: scale(1.02);
+  }
+</style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 text-slate-900 font-sans min-h-screen">
+
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="mb-8">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
+        <div class="flex items-center gap-4">
+          <div class="bg-indigo-600 p-3 rounded-2xl shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v3a2 2 0 0 1-2 2h-3v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1H4a2 2 0 0 1-2-2v-3H1a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2h2z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-4xl font-extrabold text-slate-800">mygit</h1>
+            <p class="text-slate-600 mt-1">Lokalny system wersjonowania — prosto i szybko</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <div class="search-container bg-white rounded-xl shadow-sm border p-2 flex-1 max-w-md">
+            <div class="flex items-center gap-2 px-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Szukaj repozytoriów..." 
+                class="flex-1 bg-transparent outline-none text-slate-700 placeholder-slate-400"
+              >
+            </div>
+          </div>
+          <button onclick="refresh()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 transition-colors">
+            <svg xmlns="http://www.w3.org2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+            </svg>
+            Odśwież
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border p-4">
+        <div id="serverInfo" class="text-sm text-slate-600 text-center">
+          Ładowanie informacji o serwerze...
+        </div>
+      </div>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <section class="lg:col-span-3 space-y-6">
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-bold text-slate-800">Twoje repozytoria</h2>
+          <div class="text-sm text-slate-500" id="repoCount">
+            <span id="visibleRepos">0</span> z <span id="totalRepos">0</span> repozytoriów
+          </div>
+        </div>
+        
+        <div id="reposContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- repo cards will be injected here -->
+        </div>
+
+        <div id="noResults" class="hidden text-center py-12">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-slate-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="text-lg font-medium text-slate-600 mb-2">Nie znaleziono repozytoriów</h3>
+          <p class="text-slate-500">Spróbuj zmienić zapytanie wyszukiwania</p>
+        </div>
+      </section>
+
+      <aside class="space-y-6">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border card-hover">
+          <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+            Szybkie akcje
+          </h3>
+          <div class="text-sm text-slate-600 mb-4">
+            Użyj terminala: <code class="bg-slate-100 px-1 rounded">mygit init</code>, <code class="bg-slate-100 px-1 rounded">mygit save "opis"</code>
+          </div>
+          <div class="space-y-3">
+            <button onclick="showHelp()" class="w-full bg-indigo-50 border border-indigo-100 text-indigo-700 px-4 py-3 rounded-xl hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+              </svg>
+              Pomoc
+            </button>
+            <button onclick="refresh()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-3 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-sm flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+              </svg>
+              Odśwież
+            </button>
+          </div>
+        </div>
+        
+        <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-5 rounded-2xl shadow-lg text-white">
+          <h3 class="font-semibold mb-2 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+              <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+            </svg>
+            Statystyki
+          </h3>
+          <div class="text-sm opacity-90 space-y-1">
+            <div id="statsRepos">Repozytoriów: 0</div>
+            <div id="statsSnapshots">Snapshotów: 0</div>
+            <div id="statsSize">Rozmiar danych: 0 MB</div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Commit list modal & browse modal -->
+  <div id="overlay" class="fixed inset-0 hidden items-center justify-center modal-bg z-40">
+    <div id="panel" class="bg-white rounded-2xl shadow-2xl w-[92%] max-w-4xl p-5 fade-in">
+      <div class="flex justify-between items-center mb-3">
+        <div>
+          <h3 id="panelTitle" class="font-semibold text-lg">Panel</h3>
+          <p id="panelSub" class="text-xs text-slate-500"></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="panelClose" class="text-slate-500 hover:text-slate-800 p-1 rounded-full hover:bg-slate-100">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="panelBody" class="max-h-[60vh] overflow-auto">
+        <!-- dynamic -->
+      </div>
+
+      <div class="mt-4 text-right">
+        <button id="panelClose2" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">Zamknij</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Browse snapshot modal (drzewo) -->
+  <div id="browseOverlay" class="fixed inset-0 hidden items-center justify-center modal-bg z-50">
+    <div class="bg-white rounded-2xl shadow-2xl w-[94%] max-w-5xl p-5 fade-in">
+      <div class="flex justify-between items-start gap-4 mb-3">
+        <div>
+          <h3 id="browseTitle" class="font-semibold text-lg">Zawartość snapshotu</h3>
+          <p id="browseSub" class="text-xs text-slate-500">Przeglądaj zawartość snapshotu</p>
+        </div>
+        <div class="flex gap-2">
+          <button id="browseClose" class="text-slate-500 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="col-span-2">
+          <div id="pathBreadcrumbs" class="breadcrumbs-container"></div>
+          <div id="browseList" class="bg-slate-50 rounded-lg border p-2 max-h-[60vh] overflow-auto">
+            <!-- file entries -->
+          </div>
+        </div>
+
+        <aside class="bg-white border rounded-lg p-3">
+          <div id="filePreview" class="text-sm text-slate-700">
+            <div class="text-slate-500 text-xs mb-2">Szczegóły pliku</div>
+            <div id="fpName" class="font-medium ellipsis"></div>
+            <div id="fpType" class="text-xs text-slate-500 mt-1"></div>
+            <div id="fpSize" class="text-xs text-slate-500 mt-1"></div>
+            <div class="mt-3 space-y-2">
+              <a id="downloadFile" class="block text-indigo-600 text-sm hover:underline flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Pobierz plik
+              </a>
+              <button id="openFileBtn" class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+                Otwórz / Pokaż
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ------------------------
+   Utils
+   ------------------------ */
+function el(html){ const tmp = document.createElement('div'); tmp.innerHTML = html.trim(); return tmp.firstChild; }
+function fmtDate(d){
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  const dd = String(dt.getDate()).padStart(2,'0');
+  const mm = String(dt.getMonth()+1).padStart(2,'0');
+  const yyyy = dt.getFullYear();
+  const hh = String(dt.getHours()).padStart(2,'0');
+  const min = String(dt.getMinutes()).padStart(2,'0');
+  const ss = String(dt.getSeconds()).padStart(2,'0');
+  return `${dd}-${mm}-${yyyy} | ${hh}:${min}:${ss}`;
+}
+
+// Główna funkcja fetch - używa XHR dla diff, fetch dla reszty
+async function fetchJson(path, opts) {
+  try {
+    console.log(`🔍 Fetch: ${path}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    const fullPath = path.startsWith('http') ? path : window.location.origin + path;
+    
+    const r = await fetch(fullPath, {
+      ...opts,
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        ...opts?.headers
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
+    console.log(`📄 Response status: ${r.status} ${r.statusText} for ${path}`);
+    
+    if (!r.ok) {
+      const errorText = await r.text();
+      let errorMessage = `HTTP ${r.status}: ${r.statusText}`;
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        if (errorText) errorMessage = errorText;
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    const contentType = r.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/json')) {
+      const data = await r.json();
+      console.log(`✅ Fetch success: ${path}`);
+      return data;
+    } else {
+      const text = await r.text();
+      console.warn(`⚠️ Otrzymano nie-JSON odpowiedź dla ${path}`);
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new Error('Otrzymano nieprawidłowy format odpowiedzi (oczekiwano JSON)');
+      }
+    }
+  } catch (e) {
+    // SPECJALNA OBSŁUGA: Ignoruj błędy z rozszerzeń (127.0.0.1:9614)
+    if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
+      // Sprawdź czy to błąd z rozszerzenia React DevTools
+      if (e.message.includes('127.0.0.1:9614') || e.message.includes('localhost:9614')) {
+        console.warn('⚠️ Ignorowany błąd z React DevTools - próba ponowienia żądania...');
+        // Spróbuj ponownie bez signal/abort
+        try {
+          const fullPath = path.startsWith('http') ? path : window.location.origin + path;
+          const r = await fetch(fullPath, {
+            ...opts,
+            headers: {
+              'Accept': 'application/json',
+              ...opts?.headers
+            }
+          });
+          
+          if (r.ok) {
+            return await r.json();
+          }
+        } catch (retryError) {
+          console.error('❌ Błąd również przy ponownej próbie:', retryError);
+        }
+      }
+    }
+    
+    if (e.name === 'AbortError') {
+      throw new Error('Żądanie przekroczyło limit czasu (15s)');
+    }
+    
+    console.error(`❌ Fetch error: ${path}`, e);
+    throw e;
+  }
+}
+
+// Normalny fetch z fallback do XHR
+async function fetchWithFallback(path, opts) {
+  try {
+    console.log(`🔍 Fetch: ${path}`);
+    
+    const fullPath = path.startsWith('http') ? path : window.location.origin + path;
+    
+    const r = await fetch(fullPath, {
+      ...opts,
+      headers: {
+        'Accept': 'application/json',
+        ...opts?.headers
+      }
+    });
+    
+    console.log(`📄 Response status: ${r.status} ${r.statusText} for ${path}`);
+    
+    if (!r.ok) {
+      const errorText = await r.text();
+      throw new Error(`HTTP ${r.status}: ${errorText || r.statusText}`);
+    }
+    
+    return await r.json();
+  } catch (e) {
+    // Jeśli fetch zawiedzie, spróbuj z XHR
+    if (e.name === 'TypeError' && e.message.includes('NetworkError')) {
+      console.warn('⚠️ Fetch failed, trying XHR fallback');
+      return await fetchWithXHR(path, opts);
+    }
+    throw e;
+  }
+}
+
+// XMLHttpRequest jako fallback (odporne na rozszerzenia)
+function fetchWithXHR(path, opts) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const fullPath = path.startsWith('http') ? path : window.location.origin + path;
+    
+    xhr.open(opts?.method || 'GET', fullPath);
+    xhr.timeout = 15000;
+    
+    // Ustaw nagłówki
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (opts?.headers) {
+      Object.entries(opts.headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+    }
+    
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          console.log(`✅ XHR success: ${path}`);
+          resolve(data);
+        } catch (e) {
+          reject(new Error('Nieprawidłowy format JSON w odpowiedzi'));
+        }
+      } else {
+        reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+      }
+    };
+    
+    xhr.onerror = function() {
+      reject(new Error('Błąd sieci XHR'));
+    };
+    
+    xhr.ontimeout = function() {
+      reject(new Error('Timeout XHR'));
+    };
+    
+    // Obsługa danych w body dla POST/PUT
+    if (opts?.body) {
+      xhr.send(opts.body);
+    } else {
+      xhr.send();
+    }
+  });
+}
+
+// Fallback z XMLHttpRequest dla problemów z fetch
+function fetchWithXHR(path, opts) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const fullPath = path.startsWith('http') ? path : window.location.origin + path;
+    
+    xhr.open(opts?.method || 'GET', fullPath);
+    xhr.timeout = 15000;
+    
+    // Ustaw nagłówki
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (opts?.headers) {
+      Object.entries(opts.headers).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+    }
+    
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data);
+        } catch (e) {
+          reject(new Error('Nieprawidłowy format JSON w odpowiedzi'));
+        }
+      } else {
+        reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+      }
+    };
+    
+    xhr.onerror = function() {
+      reject(new Error('Błąd sieci'));
+    };
+    
+    xhr.ontimeout = function() {
+      reject(new Error('Timeout'));
+    };
+    
+    // Obsługa danych w body dla POST/PUT
+    if (opts?.body) {
+      xhr.send(opts.body);
+    } else {
+      xhr.send();
+    }
+  });
+}
+
+/* ------------------------
+   App state
+   ------------------------ */
+let repos = [];
+let filteredRepos = [];
+const reposContainer = document.getElementById('reposContainer');
+const searchInput = document.getElementById('searchInput');
+const noResults = document.getElementById('noResults');
+const repoCount = document.getElementById('repoCount');
+const visibleRepos = document.getElementById('visibleRepos');
+const totalRepos = document.getElementById('totalRepos');
+const serverInfo = document.getElementById('serverInfo');
+const statsRepos = document.getElementById('statsRepos');
+const statsSnapshots = document.getElementById('statsSnapshots');
+const statsSize = document.getElementById('statsSize');
+
+// Wyszukiwarka
+searchInput.addEventListener('input', (e) => {
+  filterRepos(e.target.value);
+});
+
+function filterRepos(query) {
+  if (!query.trim()) {
+    filteredRepos = [...repos];
+  } else {
+    const lowerQuery = query.toLowerCase();
+    filteredRepos = repos.filter(repo => 
+      repo.name.toLowerCase().includes(lowerQuery) ||
+      (repo.description && repo.description.toLowerCase().includes(lowerQuery)) ||
+      repo.id.toLowerCase().includes(lowerQuery)
+    );
+  }
+  
+  renderRepos();
+  updateRepoCount();
+}
+
+function updateRepoCount() {
+  visibleRepos.textContent = filteredRepos.length;
+  totalRepos.textContent = repos.length;
+  
+  if (filteredRepos.length === 0 && repos.length > 0) {
+    noResults.classList.remove('hidden');
+  } else {
+    noResults.classList.add('hidden');
+  }
+}
+
+function updateStats() {
+  const totalSnapshots = repos.reduce((sum, repo) => sum + (repo.commitCount || 0), 0);
+  const totalSize = repos.reduce((sum, repo) => sum + (repo.totalSize || 0), 0);
+  const totalSizeMB = (totalSize / 1024 / 1024).toFixed(1);
+  
+  statsRepos.textContent = `Repozytoriów: ${repos.length}`;
+  statsSnapshots.textContent = `Snapshotów: ${totalSnapshots}`;
+  statsSize.textContent = `Rozmiar danych: ${totalSizeMB} MB`;
+}
+
+/* ------------------------
+   Load & render repos
+   ------------------------ */
+async function refresh(){
+  reposContainer.innerHTML = '<div class="p-6 bg-white rounded-xl shadow text-slate-500 text-center">Ładowanie repozytoriów...</div>';
+  noResults.classList.add('hidden');
+  
+  try {
+    const data = await fetchJson('/api/repos');
+    repos = data;
+    filteredRepos = [...repos];
+    
+    // Pobierz dodatkowe statystyki dla każdego repo
+    for (let repo of repos) {
+      try {
+        const info = await fetchJson(`/api/repos/${repo.id}/info`);
+        repo.commitCount = info.commitCount;
+        repo.totalSize = info.totalSize;
+      } catch (e) {
+        console.warn(`Nie udało się pobrać info dla ${repo.id}:`, e.message);
+      }
+    }
+    
+    renderRepos();
+    updateRepoCount();
+    updateStats();
+    
+    // Aktualizuj info o serwerze
+    const proto = window.location.protocol;
+    const host = window.location.hostname;
+    const port = window.location.port;
+    serverInfo.innerHTML = `
+      <div class="flex items-center justify-center gap-2">
+        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+        Serwer działa: ${host}${port ? ':' + port : ''}
+      </div>
+    `;
+  } catch(e){
+    reposContainer.innerHTML = `<div class="p-6 bg-red-50 rounded-xl border text-red-700">Błąd: ${e.message}</div>`;
+    serverInfo.innerHTML = `<div class="text-red-600">Błąd połączenia z serwerem</div>`;
+  }
+}
+
+function renderRepos(){
+  if(!filteredRepos.length){
+    return;
+  }
+  
+  reposContainer.innerHTML = filteredRepos.map(r => repoCardHtml(r)).join('');
+}
+
+function repoCardHtml(r){
+  const commitCount = r.commitCount || 0;
+  const sizeMB = r.totalSize ? (r.totalSize / 1024 / 1024).toFixed(1) : '0';
+  const lastUpdate = r.updatedAt ? fmtDate(r.updatedAt) : 'Nieznana';
+  
+  return `
+  <div class="bg-white p-5 rounded-2xl shadow-sm border card-hover">
+    <div class="flex justify-between items-start mb-3">
+      <div class="flex-1 min-w-0">
+        <h2 class="text-xl font-semibold text-slate-800 truncate">${escapeHtml(r.name)}</h2>
+        <div class="text-sm text-slate-600 mt-1 line-clamp-2">${escapeHtml(r.description || 'Brak opisu')}</div>
+      </div>
+      <div class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full ml-2 flex-shrink-0">${escapeHtml(r.id)}</div>
+    </div>
+
+    <div class="flex items-center justify-between text-xs text-slate-500 mb-4">
+      <div class="flex items-center gap-4">
+        <span class="flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+          </svg>
+          ${lastUpdate.split(' | ')[0]}
+        </span>
+        <span class="flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm-1 4a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd" />
+          </svg>
+          ${commitCount} snapshotów
+        </span>
+      </div>
+      <span class="flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" clip-rule="evenodd" />
+        </svg>
+        ${sizeMB} MB
+      </span>
+    </div>
+
+    <div class="flex gap-2">
+      <button class="btn-history px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1 flex-1 justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+        </svg>
+        Historia
+      </button>
+      <button class="btn-browse px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1 flex-1 justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z" clip-rule="evenodd" />
+          <path d="M6 12a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2H2h2a2 2 0 002-2v-2z" />
+        </svg>
+        Przeglądaj
+      </button>
+      <button class="btn-delete px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="mt-4 hidden repo-history p-3 rounded-lg bg-slate-50 border"></div>
+  </div>
+  `;
+}
+
+function escapeHtml(s){ return String(s || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+/* ------------------------
+   Delegated clicks (history, browse, delete)
+   ------------------------ */
+reposContainer.addEventListener('click', async (e) => {
+  const card = e.target.closest('.card-hover');
+  if (!card) return;
+  const name = card.querySelector('h2')?.textContent;
+  if (!name) return;
+
+  if (e.target.closest('.btn-history')) {
+    await toggleHistory(card, name);
+  } else if (e.target.closest('.btn-browse')) {
+    openBrowse(name);
+  } else if (e.target.closest('.btn-delete')) {
+    confirmDeleteRepo(name);
+  } else if (e.target.closest('.repo-history a.download-link')){
+    // handled by link default
+  }
+});
+
+/* ------------------------
+   Toggle history
+   ------------------------ */
+async function toggleHistory(card, repoId){
+  const hist = card.querySelector('.repo-history');
+  if (!hist) return;
+  if (!hist.classList.contains('hidden')) {
+    hist.classList.add('hidden'); return;
+  }
+  hist.innerHTML = '<div class="text-sm text-slate-500">Ładowanie historii...</div>';
+  hist.classList.remove('hidden');
+  try {
+    const commits = await fetchJson(`/api/repos/${repoId}/history`);
+    if (!commits.length) {
+      hist.innerHTML = '<div class="text-sm text-slate-600">Brak snapshotów.</div>';
+      return;
+    }
+    hist.innerHTML = commits.map(c => commitRowHtml(repoId, c)).join('');
+  } catch(err){
+    hist.innerHTML = `<div class="text-sm text-red-600">Błąd: ${err.message}</div>`;
+  }
+}
+
+function commitRowHtml(repoId, c){
+  const d = fmtDate(c.date);
+  return `
+  <div class="flex items-center justify-between py-2 border-b last:border-b-0">
+    <div class="flex-1 min-w-0">
+      <div class="font-medium text-slate-800 truncate">${escapeHtml(c.message || c.file)}</div>
+      <div class="text-xs text-slate-400">${escapeHtml(d)}</div>
+    </div>
+    <div class="text-sm flex items-center gap-2 ml-2">
+      <a class="download-link text-indigo-600 hover:underline flex items-center gap-1" href="/api/repos/${repoId}/download/${encodeURIComponent(c.file)}">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+        Pobierz
+      </a>
+      <button onclick="previewDiff('${repoId}','${encodeURIComponent(c.file)}')" class="text-slate-700 hover:text-slate-900 flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+          <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+        </svg>
+        Podgląd
+      </button>
+      <button onclick="confirmDeleteSnap('${repoId}','${encodeURIComponent(c.file)}')" class="text-red-600 hover:text-red-800 flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        Usuń
+      </button>
+    </div>
+  </div>
+  `;
+}
+
+/* ------------------------
+   Preview diff modal
+   ------------------------ */
+async function previewDiff(repoId, fileEnc) {
+  const file = decodeURIComponent(fileEnc);
+  showOverlay('Podgląd zmian', `Snapshot: ${file}`, async (body) => {
+    body.innerHTML = `
+      <div class="flex items-center justify-center py-8">
+        <div class="text-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <div class="text-sm text-slate-500">Ładuję różnice...</div>
+          <div class="text-xs text-slate-400 mt-2">To może chwilę potrwać</div>
+        </div>
+      </div>
+    `;
+    
+    try {
+      console.log(`🔍 Żądanie diff: ${repoId}, ${file}`);
+      
+      // Użyjemy specjalnej funkcji dla diff która używa XHR
+      const diff = await fetchJson(`/api/repos/${repoId}/diff/${encodeURIComponent(file)}`);
+      
+      console.log('✅ Otrzymano diff:', diff);
+      
+      if (!diff || typeof diff !== 'object') {
+        throw new Error('Otrzymano nieprawidłowe dane diff');
+      }
+      
+      body.innerHTML = renderDiff(diff);
+      
+    } catch (e) {
+      console.error('❌ Błąd previewDiff:', e);
+      
+      // Specjalna obsługa błędów związanych z rozszerzeniami
+      if (e.message.includes('XHR') || e.message.includes('Network')) {
+        body.innerHTML = `
+          <div class="text-sm text-orange-600 bg-orange-50 p-6 rounded-lg">
+            <div class="font-semibold mb-3">🛠️ Problem z połączeniem</div>
+            <div class="mb-4">Wypróbuj następujące rozwiązania:</div>
+            <ul class="text-xs list-disc list-inside space-y-2 mb-4">
+              <li><strong>Wyłącz React DevTools</strong> - to najczęstsza przyczyna</li>
+              <li>Użyj trybu incognito/private</li>
+              <li>Tymczasowo wyłącz inne rozszerzenia developerowe</li>
+              <li>Odśwież stronę po wyłączeniu rozszerzeń</li>
+            </ul>
+            <div class="flex gap-2 flex-wrap justify-center">
+              <button onclick="retryDiff('${repoId}', '${fileEnc}')" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700 transition-colors">
+                🔄 Spróbuj ponownie
+              </button>
+              <button onclick="closeOverlay()" class="bg-slate-100 px-4 py-2 rounded-md text-sm hover:bg-slate-200 transition-colors">
+                ❌ Anuluj
+              </button>
+              <button onclick="window.location.reload()" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors">
+                🔁 Odśwież stronę
+              </button>
+            </div>
+          </div>
+        `;
+      } else {
+        body.innerHTML = `
+          <div class="text-sm text-red-600 bg-red-50 p-6 rounded-lg">
+            <div class="font-semibold mb-2">❌ Błąd podczas ładowania różnic:</div>
+            <div class="mb-4">${escapeHtml(e.message)}</div>
+            <div class="flex gap-2 justify-center">
+              <button onclick="retryDiff('${repoId}', '${fileEnc}')" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700 transition-colors">
+                🔄 Spróbuj ponownie
+              </button>
+              <button onclick="closeOverlay()" class="bg-slate-100 px-4 py-2 rounded-md text-sm hover:bg-slate-200 transition-colors">
+                ❌ Zamknij
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    }
+  });
+}
+
+function retryDiff(repoId, fileEnc) {
+  previewDiff(repoId, fileEnc);
+}
+
+function renderDiff(diff){
+  try {
+    // Jeśli to pierwszy commit, pokaż specjalny komunikat
+    if (diff.info) {
+      return `
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="font-semibold text-blue-800">${diff.info}</div>
+          <div class="text-sm text-blue-600 mt-2">
+            Ten snapshot zawiera wszystkie pliki jako nowe, ponieważ nie ma poprzedniej wersji do porównania.
+          </div>
+        </div>
+      `;
+    }
+
+    // Sprawdź czy diff ma wymagane pola
+    if (!diff.added || !diff.removed || !diff.modified) {
+      throw new Error('Brak wymaganych pól w danych diff');
+    }
+
+    const parts = [
+      {title:'Dodane', cls:'text-green-600 bg-green-50', arr: Array.isArray(diff.added) ? diff.added : []},
+      {title:'Usunięte', cls:'text-red-600 bg-red-50', arr: Array.isArray(diff.removed) ? diff.removed : []},
+      {title:'Zmodyfikowane', cls:'text-yellow-600 bg-yellow-50', arr: Array.isArray(diff.modified) ? diff.modified : []}
+    ];
+    
+    let html = `
+      <div class="mb-4 text-sm text-slate-500">
+        Porównanie: <strong>${escapeHtml(diff.prev || 'Brak poprzedniego')}</strong> → <strong>${escapeHtml(diff.current || 'Nieznany')}</strong>
+      </div>
+    `;
+    
+    html += parts.map(p => `
+      <div class="mb-4 border rounded-lg overflow-hidden">
+        <div class="font-semibold ${p.cls.split(' ')[0]} px-4 py-2 ${p.cls.split(' ')[1]}">
+          ${p.title} (${p.arr.length})
+        </div>
+        ${p.arr.length ? `
+          <div class="max-h-40 overflow-y-auto">
+            <ul class="text-xs py-2 list-disc list-inside">
+              ${p.arr.map(x => `<li class="px-4 py-1 hover:bg-slate-50">${escapeHtml(x)}</li>`).join('')}
+            </ul>
+          </div>
+        ` : `
+          <div class="text-xs text-slate-400 px-4 py-3">Brak zmian</div>
+        `}
+      </div>
+    `).join('');
+    
+    if (diff.stats) {
+      html += `
+        <div class="mt-4 p-3 bg-slate-50 rounded-lg border">
+          <div class="text-sm font-semibold text-slate-700">Podsumowanie:</div>
+          <div class="text-xs text-slate-600 mt-1">
+            Dodano: ${diff.stats.added || 0}, Usunięto: ${diff.stats.removed || 0}, Zmodyfikowano: ${diff.stats.modified || 0}
+            (Razem: ${(diff.stats.totalChanges || 0)} zmian)
+          </div>
+        </div>
+      `;
+    }
+    
+    return html;
+  } catch (e) {
+    console.error('Błąd w renderDiff:', e);
+    return `
+      <div class="text-red-600 bg-red-50 p-4 rounded-lg">
+        <div class="font-semibold">Błąd podczas renderowania różnic:</div>
+        <div class="mt-2">${escapeHtml(e.message)}</div>
+        <pre class="mt-2 text-xs bg-red-100 p-2 rounded overflow-auto">${escapeHtml(JSON.stringify(diff, null, 2))}</pre>
+      </div>
+    `;
+  }
+}
+
+/* ------------------------
+   Confirm modal for repo / snapshot delete
+   ------------------------ */
+function showOverlay(title, sub, onBodyReady){
+  const overlay = document.getElementById('overlay');
+  const panelTitle = document.getElementById('panelTitle');
+  const panelSub = document.getElementById('panelSub');
+  const panelBody = document.getElementById('panelBody');
+  panelTitle.textContent = title;
+  panelSub.textContent = sub || '';
+  panelBody.innerHTML = '<div class="text-sm text-slate-500">Ładuję...</div>';
+  overlay.classList.remove('hidden'); overlay.classList.add('flex');
+  document.getElementById('panelClose').onclick = () => closeOverlay();
+  document.getElementById('panelClose2').onclick = () => closeOverlay();
+  onBodyReady(panelBody);
+}
+function closeOverlay(){ document.getElementById('overlay').classList.add('hidden'); document.getElementById('overlay').classList.remove('flex'); }
+
+/* ------------------------
+   Confirm delete repo
+   ------------------------ */
+function confirmDeleteRepo(repoId){
+  showOverlay('Usuń repozytorium', `Usunięcie repozytorium ${repoId}`, (body) => {
+    body.innerHTML = `
+      <div class="text-sm">Czy na pewno chcesz usunąć repozytorium <strong>${escapeHtml(repoId)}</strong>? <br><span class="text-xs text-slate-500">Operacja usunie wersje i metadane.</span></div>
+      <div class="mt-4 flex gap-2">
+        <button id="delYes" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 transition-colors">Tak, usuń</button>
+        <button id="delNo" class="bg-slate-100 px-3 py-2 rounded-md hover:bg-slate-200 transition-colors">Anuluj</button>
+      </div>
+    `;
+    body.querySelector('#delNo').onclick = closeOverlay;
+    body.querySelector('#delYes').onclick = async () => {
+      try {
+        await fetch(`/api/repos/${repoId}`, { method: 'DELETE' });
+        closeOverlay(); refresh();
+      } catch (e){ body.innerHTML = `<div class="text-sm text-red-600">Błąd: ${e.message}</div>`; }
+    };
+  });
+}
+
+/* ------------------------
+   Confirm delete snapshot
+   ------------------------ */
+function confirmDeleteSnap(repoId, fileEnc){
+  const file = decodeURIComponent(fileEnc);
+  showOverlay('Usuń snapshot', `Usuń snapshot ${file}`, (body) => {
+    body.innerHTML = `
+      <div class="text-sm">Usuń snapshot <strong>${escapeHtml(file)}</strong> z repozytorium <strong>${escapeHtml(repoId)}</strong>?</div>
+      <div class="mt-4 flex gap-2">
+        <button id="delYes" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 transition-colors">Usuń</button>
+        <button id="delNo" class="bg-slate-100 px-3 py-2 rounded-md hover:bg-slate-200 transition-colors">Anuluj</button>
+      </div>
+    `;
+    body.querySelector('#delNo').onclick = closeOverlay;
+    body.querySelector('#delYes').onclick = async () => {
+      try {
+        await fetch(`/api/repos/${repoId}/commit/${encodeURIComponent(file)}`, { method: 'DELETE' });
+        closeOverlay(); refresh();
+      } catch (e){ body.innerHTML = `<div class="text-sm text-red-600">Błąd: ${e.message}</div>`; }
+    };
+  });
+}
+
+/* ------------------------
+   Browse snapshot modal (tree)
+   ------------------------ */
+async function openBrowse(repoId){
+  // open latest snapshot browse
+  try {
+    showBrowseOverlay(repoId, '');
+    await loadBrowse(repoId, '');
+  } catch (e){
+    alert('Błąd: ' + e.message);
+  }
+}
+
+function showBrowseOverlay(repoId, path){
+  document.getElementById('browseOverlay').classList.remove('hidden');
+  document.getElementById('browseOverlay').classList.add('flex');
+  document.getElementById('browseTitle').textContent = `Zawartość snapshotu — ${repoId}`;
+  document.getElementById('browseClose').onclick = () => { 
+    document.getElementById('browseOverlay').classList.add('hidden'); 
+    document.getElementById('browseOverlay').classList.remove('flex'); 
+  };
+}
+
+async function loadBrowse(repoId, path){
+  const listEl = document.getElementById('browseList');
+  const bc = document.getElementById('pathBreadcrumbs');
+  listEl.innerHTML = '<div class="text-sm text-slate-500 p-3">Ładuję...</div>';
+  
+  try {
+    // backend should accept ?path=...
+    const u = `/api/repos/${repoId}/browse` + (path ? `?path=${encodeURIComponent(path)}` : '');
+    const resp = await fetchJson(u);
+    const files = resp.files || [];
+    
+    // Nowe breadcrumbs - bardziej czytelne
+    renderBreadcrumbs(repoId, path, bc);
+    
+    // render list
+    if (!files.length) { 
+      listEl.innerHTML = '<div class="text-sm text-slate-500 p-3">Pusty folder</div>'; 
+      return; 
+    }
+    
+    listEl.innerHTML = files.map(f => `
+      <div class="file-row flex items-center justify-between p-2 rounded clickable hover:bg-slate-100 transition-colors" onclick="onBrowseClick('${repoId}','${escapeJS(f.path)}','${f.type}')">
+        <div class="flex items-center gap-3">
+          <div class="w-6 text-slate-500">${f.type==='dir' ? '📁' : '📄'}</div>
+          <div>
+            <div class="text-sm font-medium">${escapeHtml(f.name)}</div>
+            <div class="text-xs text-slate-400">${f.type==='file' ? (f.size ? humanSize(f.size) : '') : 'Katalog'}</div>
+          </div>
+        </div>
+        <div class="text-xs text-slate-500">
+          ${f.type==='file' ? `<a class="text-indigo-600 hover:underline flex items-center gap-1" href="/api/repos/${repoId}/file/${encodeURIComponent(resp.commitFile || '')}/${encodeURIComponent(f.path)}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+            Pobierz
+          </a>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (e){
+    listEl.innerHTML = `<div class="text-sm text-red-600 p-3">Błąd: ${e.message}</div>`;
+  }
+}
+
+// Nowa funkcja do renderowania breadcrumbs
+function renderBreadcrumbs(repoId, currentPath, container) {
+  const parts = currentPath ? currentPath.split('/').filter(Boolean) : [];
+  
+  let breadcrumbsHtml = `
+    <div class="breadcrumb-item clickable breadcrumb-root" onclick="loadBrowse('${repoId}', '')">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+      </svg>
+      Główny
+    </div>
+  `;
+  
+  let accumulatedPath = '';
+  parts.forEach((part, index) => {
+    accumulatedPath += (accumulatedPath ? '/' : '') + part;
+    const isLast = index === parts.length - 1;
+    
+    breadcrumbsHtml += `
+      <div class="breadcrumb-item ${isLast ? 'text-slate-600' : 'clickable'}" 
+           ${!isLast ? `onclick="loadBrowse('${repoId}', '${accumulatedPath}')"` : ''}>
+        ${escapeHtml(part)}
+      </div>
+    `;
+  });
+  
+  container.innerHTML = breadcrumbsHtml;
+}
+
+function escapeJS(s){ return (s||'').replaceAll("'", "\\'").replaceAll('"','\\"'); }
+function humanSize(n){ if(!n) return ''; const sizes=['B','KB','MB','GB']; let i=0; while(n>1024 && i<3){ n/=1024; i++; } return `${n.toFixed( (i===0)?0:1 )} ${sizes[i]}`; }
+
+async function onBrowseClick(repoId, path, type){
+  if (type === 'dir'){
+    await loadBrowse(repoId, path);
+    return;
+  }
+  
+  // Pobierz aktualny commit z danych przeglądania
+  const browseData = await fetchJson(`/api/repos/${repoId}/browse?path=${encodeURIComponent(path.split('/').slice(0, -1).join('/'))}`);
+  const commitFile = browseData.commitFile;
+  
+  document.getElementById('fpName').textContent = path.split('/').pop();
+  document.getElementById('fpType').textContent = 'Plik';
+  document.getElementById('fpSize').textContent = '';
+  
+  // Użyj nowego endpointu do pobierania plików
+  const downloadUrl = `/api/repos/${repoId}/file/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`;
+  const previewUrl = `/api/repos/${repoId}/preview/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`;
+  
+  const dl = document.getElementById('downloadFile');
+  dl.href = downloadUrl;
+  dl.textContent = '⬇ Pobierz plik';
+  
+  document.getElementById('openFileBtn').onclick = async () => { 
+    try {
+      // Dla plików tekstowych - pokaż w modal, dla innych - otwórz w nowej karcie
+      const isText = /\.(txt|js|json|html|css|md|xml|yml|yaml)$/i.test(path);
+      if (isText) {
+        const preview = await fetchJson(previewUrl);
+        showFilePreview(preview.content, path);
+      } else {
+        window.open(downloadUrl, '_blank');
+      }
+    } catch (e) {
+      window.open(downloadUrl, '_blank');
+    }
+  };
+}
+
+// Dodaj funkcję do podglądu plików tekstowych
+function showFilePreview(content, filename) {
+  showOverlay('Podgląd pliku', filename, (body) => {
+    body.innerHTML = `
+      <div class="mb-4">
+        <div class="text-sm text-slate-500 mb-2">Ścieżka: ${escapeHtml(filename)}</div>
+        <pre class="bg-slate-100 p-4 rounded-lg overflow-auto max-h-96 text-sm">${escapeHtml(content)}</pre>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="closeOverlay()" class="bg-slate-100 px-4 py-2 rounded-md hover:bg-slate-200 transition-colors">Zamknij</button>
+      </div>
+    `;
+  });
+}
+
+/* ------------------------
+   UI small helpers
+   ------------------------ */
+function showHelp(){
+  showOverlay('Pomoc', 'Krótkie komendy', (body) => {
+    body.innerHTML = `
+      <div class="space-y-4">
+        <div>
+          <h4 class="font-semibold text-slate-800 mb-2">Podstawowe komendy:</h4>
+          <pre class="text-sm bg-slate-50 border p-3 rounded overflow-auto">mygit init                 # utwórz repo w bieżącym folderze
+mygit comment "opis"       # zmień opis repozytorium  
+mygit save "opis"          # zrób snapshot
+mygit log                  # pokaż historię
+mygit list                 # lista repozytoriów</pre>
+        </div>
+        <div>
+          <h4 class="font-semibold text-slate-800 mb-2">Przykłady użycia:</h4>
+          <pre class="text-sm bg-slate-50 border p-3 rounded overflow-auto"># Utwórz repozytorium
+mygit init
+
+# Zmień opis
+mygit comment "Mój projekt Node.js"
+
+# Zrób snapshot  
+mygit save "Dodano nową funkcję"
+
+# Zobacz historię
+mygit log
+
+# Sprawdź status
+mygit status</pre>
+        </div>
+      </div>
+    `;
+  });
+}
+
+/* ------------------------
+   Init
+   ------------------------ */
+window.addEventListener('load', () => {
+  refresh();
+  
+  // Focus na wyszukiwarkę po załadowaniu
+  setTimeout(() => {
+    searchInput.focus();
+  }, 500);
+});
+</script>
+</body>
+</html>

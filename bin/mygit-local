@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+
+# =============================================================================
+# 🧠 mygit-local - Lokalny system wersjonowania
+# Globalny wrapper dla narzędzia mygit (pełna wersja lokalna)
+# =============================================================================
+
+# Stała ścieżka do projektu mygit (dostosuj do swojej ścieżki)
+MYGIT_DIR="/home/paffcio/Pobrane/mygit"
+CLI="${MYGIT_DIR}/cli/index.js"
+
+# Kolorowe outputy
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Funkcja logowania
+log_info() {
+    echo -e "${BLUE}ℹ️  mygit-local:${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}✅ mygit-local:${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠️  mygit-local:${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}❌ mygit-local:${NC} $1"
+}
+
+log_command() {
+    echo -e "${CYAN}🧠 mygit-local:${NC} $1"
+}
+
+# Sprawdź czy MYGIT_DIR istnieje
+if [ ! -d "$MYGIT_DIR" ]; then
+    log_error "Katalog mygit nie istnieje: $MYGIT_DIR"
+    log_info "Zmień ścieżkę MYGIT_DIR w skrypcie: $(which mygit-local)"
+    exit 1
+fi
+
+# Sprawdź czy CLI istnieje
+if [ ! -f "$CLI" ]; then
+    log_error "Plik CLI nie istnieje: $CLI"
+    exit 1
+fi
+
+# Sprawdź czy Node.js jest dostępny
+if ! command -v node >/dev/null 2>&1; then
+    log_error "Node.js nie jest zainstalowany!"
+    exit 1
+fi
+
+# Sprawdź czy zależności są zainstalowane, jeśli nie - zainstaluj
+if [ ! -d "$MYGIT_DIR/node_modules" ]; then
+    log_warning "Zależności Node.js nie są zainstalowane."
+    log_info "Instalowanie zależności w: $MYGIT_DIR"
+    
+    cd "$MYGIT_DIR"
+    if npm install; then
+        log_success "Zależności zostały pomyślnie zainstalowane"
+    else
+        log_error "Błąd podczas instalacji zależności!"
+        exit 1
+    fi
+fi
+
+# Ustaw nazwę repozytorium na podstawie bieżącego katalogu
+REPO_NAME=$(basename "$(pwd)")
+
+# Pomoc dla użytkownika
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo -e "${MAGENTA}"
+    echo "🧠 mygit-local - Lokalny system wersjonowania"
+    echo "Globalny wrapper - wersja 1.1.0"
+    echo -e "${NC}"
+    echo "Użycie:"
+    echo "  mygit-local [komenda] [opcje]"
+    echo ""
+    echo "Podstawowe komendy:"
+    echo "  init          - Utwórz repozytorium w bieżącym folderu"
+    echo "  comment [opis]- Zmień opis repozytorium"
+    echo "  save [opis]   - Zrób snapshot z opisem"
+    echo "  log           - Pokaż historię snapshotów"
+    echo "  status        - Pokaż status repozytorium"
+    echo "  list          - Lista wszystkich repozytoriów"
+    echo "  delete [plik] - Usuń snapshot"
+    echo ""
+    echo "Dodatkowe opcje:"
+    echo "  --server      - Uruchom serwer webowy"
+    echo "  --help        - Pokaż pomoc"
+    echo ""
+    echo "Przykłady:"
+    echo "  mygit-local init"
+    echo "  mygit-local comment \"Mój projekt Node.js\""
+    echo "  mygit-local save \"Dodano nową funkcję\""
+    echo "  mygit-local log"
+    echo "  mygit-local status"
+    exit 0
+fi
+
+# Uruchom serwer
+if [ "$1" = "--server" ] || [ "$1" = "server" ]; then
+    log_info "Uruchamianie serwera webowego..."
+    cd "$MYGIT_DIR"
+    npm start
+    exit 0
+fi
+
+# Jeśli brak argumentów, pokaż pomoc
+if [ $# -eq 0 ]; then
+    ARGS=("--help")
+else
+    ARGS=("$@")
+fi
+
+# Główna komenda
+log_command "Wykonywanie komendy: ${ARGS[*]}"
+log_info "Repozytorium: $REPO_NAME"
+log_info "Ścieżka: $(pwd)"
+
+REPO_NAME="${REPO_NAME}" node "${CLI}" "${ARGS[@]}"
+
+EXIT_CODE=$?
+
+# Obsługa kodów wyjścia
+if [ $EXIT_CODE -eq 0 ]; then
+    log_success "Komenda zakończona sukcesem"
+else
+    log_error "Komenda zakończona z kodem błędu: $EXIT_CODE"
+fi
+
+exit $EXIT_CODE

@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+
+# =============================================================================
+# 🧠 mygit - Zdalny system wersjonowania na Synology DSM
+# Wrapper przez SSH dla Synology DSM
+# =============================================================================
+
+# Stałe dane logowania (dostosuj do swoich)
+SSH_USER="Paffcio"
+SSH_HOST="192.168.0.130"
+REMOTE_DIR="/volume1/NodeServers/NodeServiceHUB/servers/mygit"
+REMOTE_CLI="${REMOTE_DIR}/cli/index.js"
+SSH_PASS="aA@512513314"
+
+# Kolorowe outputy
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Funkcja logowania
+log_info() {
+    echo -e "${BLUE}ℹ️  mygit:${NC} $1" >&2
+}
+
+log_success() {
+    echo -e "${GREEN}✅ mygit:${NC} $1" >&2
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠️  mygit:${NC} $1" >&2
+}
+
+log_error() {
+    echo -e "${RED}❌ mygit:${NC} $1" >&2
+}
+
+log_command() {
+    echo -e "${CYAN}🧠 mygit:${NC} $1" >&2
+}
+
+# Funkcja do tworzenia listy plików do uwzględnienia
+create_file_list() {
+    local file_list="/tmp/mygit_files_$$.txt"
+    
+    # Użyj find aby znaleźć wszystkie pliki, ale pomiń te wykluczone
+    local exclude_dirs=(".git" "node_modules" ".DS_Store" ".mygitignore")
+    
+    # Dodaj wzorce z .mygitignore jeśli istnieje
+    if [ -f ".mygitignore" ]; then
+        log_info "Uwzględniono plik .mygitignore"
+        while IFS= read -r pattern || [ -n "$pattern" ]; do
+            # Pomijaj komentarze i puste linie
+            pattern=$(echo "$pattern" | sed 's/#.*$//' | tr -d '[:space:]')
+            if [ -n "$pattern" ]; then
+                # Usuń końcowy / jeśli istnieje
+                pattern="${pattern%/}"
+                exclude_dirs+=("$pattern")
+            fi
+        done < ".mygitignore"
+    fi
+    
+    # Zbuduj polecenie find z wykluczeniami
+    local find_cmd="find . -type f"
+    for dir in "${exclude_dirs[@]}"; do
+        find_cmd="$find_cmd -not -path \"./$dir/*\" -not -name \"$dir\""
+    done
+    
+    # Wykonaj find i zapisz do pliku
+    eval $find_cmd > "$file_list"
+    
+    echo "$file_list"
+}
+
+# Pomoc dla użytkownika
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo -e "${MAGENTA}"
+    echo "🧠 mygit - Zdalny system wersjonowania na Synology DSM"
+    echo "Globalny wrapper - wersja 1.1.0"
+    echo -e "${NC}"
+    echo "Użycie:"
+    echo "  mygit [komenda] [opcje]"
+    echo ""
+    echo "Podstawowe komendy:"
+    echo "  init            - Utwórz repozytorium w bieżącym folderu"
+    echo "  comment [opis]  - Zmień opis repozytorium"
+    echo "  save [opis]     - Zrób snapshot z opisem"
+    echo "  log             - Pokaż historię snapshotów"
+    echo "  status          - Pokaż status repozytorium"
+    echo "  list            - Lista wszystkich repozytoriów"
+    echo "  delete [plik]   - Usuń snapshot"
+    echo ""
+    echo "Przykłady:"
+    echo "  mygit init"
+    echo "  mygit comment \"Mój projekt Node.js\""
+    echo "  mygit save \"Dodano nową funkcję\""
+    echo "  mygit log"
+    echo "  mygit status"
+    exit 0
+fi
+
+# Sprawdź czy sshpass jest dostępny
+if ! command -v sshpass >/dev/null 2>&1; then
+    log_error "sshpass nie jest zainstalowany. Zainstaluj: sudo apt install sshpass"
+    exit 1
+fi
+
+# nazwa bieżącego folderu (repo)
+REPO_NAME=$(basename "$(pwd)")
+
+# Jeśli nie podano argumentów – pokaż pomoc
+if [ $# -eq 0 ]; then
+    ARGS="--help"
+else
+    ARGS="$*"
+fi
+
+# Główna komenda
+log_command "Wysyłanie komendy do Synology DSM..."
+log_info "Repozytorium: $REPO_NAME"
+log_info "Lokalna ścieżka: $(pwd)"
+
+# Dla komendy 'save' przesyłamy pliki przez pipe tar
+if [ "$1" = "save" ] || [ "$1" = "push" ]; then
+    log_info "Przygotowywanie do wysłania snapshotu..."
+    
+    # Utwórz listę plików do uwzględnienia
+    FILE_LIST=$(create_file_list)
+    FILE_COUNT=$(wc -l < "$FILE_LIST")
+    log_info "Znaleziono $FILE_COUNT plików do wysłania"
+    
+    if [ "$FILE_COUNT" -eq 0 ]; then
+        log_error "Brak plików do wysłania!"
+        rm -f "$FILE_LIST"
+        exit 1
+    fi
+    
+    log_info "Wysyłanie plików na Synology (przez pipe tar)..."
+    
+    # Przesyłamy pliki przez tar pipe z listą plików do uwzględnienia
+    if ! tar -cz -T "$FILE_LIST" 2>/dev/null | 
+        sshpass -p "$SSH_PASS" ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            "${SSH_USER}@${SSH_HOST}" "
+            # Utwórz tymczasowy katalog
+            TEMP_DIR=\"/tmp/mygit_temp_\$\$\"
+            mkdir -p \"\$TEMP_DIR\"
+            
+            # Rozpakuj przychodzące dane tar
+            cd \"\$TEMP_DIR\" && tar -xzf -
+            
+            # Wykonaj komendę mygit
+            cd '${REMOTE_DIR}'
+            REPO_NAME='${REPO_NAME}' SOURCE_PATH=\"\$TEMP_DIR\" /usr/local/bin/node '${REMOTE_CLI}' ${ARGS}
+            
+            # Posprzątaj
+            rm -rf \"\$TEMP_DIR\"
+            "; then
+        log_error "Błąd podczas przesyłania lub wykonywania komendy na Synology!"
+        rm -f "$FILE_LIST"
+        exit 1
+    fi
+    
+    # Usuń listę plików
+    rm -f "$FILE_LIST"
+    
+else
+    # Dla innych komend (init, comment, log, status, list) - normalne wykonanie
+    if ! sshpass -p "$SSH_PASS" ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        "${SSH_USER}@${SSH_HOST}" "cd '${REMOTE_DIR}' && REPO_NAME='${REPO_NAME}' /usr/local/bin/node '${REMOTE_CLI}' ${ARGS}"; then
+        log_error "Błąd podczas wykonywania komendy na Synology!"
+        exit 1
+    fi
+fi
+
+EXIT_CODE=$?
+
+# Obsługa kodów wyjścia
+if [ $EXIT_CODE -eq 0 ]; then
+    log_success "Komenda zakończona sukcesem"
+else
+    log_error "Komenda zakończona z kodem błędu: $EXIT_CODE"
+fi
+
+exit $EXIT_CODE

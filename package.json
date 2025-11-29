@@ -1,0 +1,36 @@
+{
+  "name": "mygit",
+  "version": "0.1.1",
+  "description": "Lekki system wersjonowania oparty na snapshotach (zip). Express + CLI + prosty panel",
+  "main": "server.mjs",
+  "type": "module",
+  "bin": {
+    "mygit": "./cli/index.js"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "NODE_ENV=development node server.mjs"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "archiver": "^5.3.1",
+    "commander": "^14.0.2",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.19",
+    "express": "^4.18.2",
+    "fs-extra": "^11.3.2",
+    "glob": "^10.3.3",
+    "ignore": "^7.0.5",
+    "inquirer": "^9.2.7",
+    "mime": "^3.0.0",
+    "pino": "^8.20.0",
+    "rimraf": "^5.0.0",
+    "serve-static": "^1.15.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
