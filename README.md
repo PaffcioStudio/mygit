@@ -1,2 +1,91 @@
-# mygit
-Lokalny system snapshotów dla projektów z Web UI i CLI. Bez Git, bez chmury, tylko szybkie snapshoty, historia, diff i przeglądanie zmian. Działa na Linux oraz Synology DSM. Instalacja w 1 poleceniu.
+# mygit — lokalny system wersjonowania snapshotów
+
+mygit to lekki, szybki i niezależny system snapshotów dla projektów, który nie wymaga korzystania z Git, GitHub ani zewnętrznych repozytoriów. Narzędzie pozwala tworzyć lokalne punkty przywracania (snapshoty), przeglądać historię, porównywać zmiany, pobierać wersje plików i zarządzać repozytoriami przez interfejs webowy oraz CLI.
+
+## ✨ Najważniejsze cechy
+- Snapshoty projektów w jednym poleceniu
+- Historia, diff, przeglądanie plików i folderów
+- Przeglądarka snapshotów z UI (Web UI)
+- Statystyki repozytoriów i wersji
+- Możliwość pobierania snapshotów
+- Wsparcie dla wielu repozytoriów
+- Działa w sieci lokalnej i zdalnie (Synology, Linux, Docker)
+- Lekki, bez zależności, zero konfiguracji
+
+# 📦 Instalacja
+
+## Wymagania
+- Linux lub DSM (Synology)
+- Node.js 18+
+- Bash
+
+## 1. Pobierz projekt
+```
+git clone https://github.com/USER/mygit
+cd mygit
+```
+
+## 2. Nadaj uprawnienia instalatorowi
+```
+chmod +x ./_install_linux.sh
+```
+
+## 3. Instalacja systemowa
+```
+sudo ./_install_linux.sh
+```
+
+Binarki zostaną zainstalowane w:
+```
+/usr/local/bin/
+```
+
+Po instalacji dostępne komendy:
+- `mygit`
+- `mygit-local`
+
+# 🧪 Szybki start (CLI)
+
+## Utwórz repozytorium
+```
+mygit init
+```
+
+## Dodaj snapshot
+```
+mygit save "Opis zmian"
+```
+
+## Historia snapshotów
+```
+mygit log
+```
+
+# 🌐 Uruchomienie Web UI
+```
+node server.mjs
+```
+
+Adres domyślny:
+```
+http://localhost:5050
+```
+
+# 📁 Struktura projektu
+```
+/bin/
+  mygit
+  mygit-local
+/public/
+server.mjs
+_install_linux.sh
+```
+
+# 🧹 Odinstalowanie
+```
+sudo rm /usr/local/bin/mygit
+sudo rm /usr/local/bin/mygit-local
+```
+
+# 📄 Licencja
+MIT
