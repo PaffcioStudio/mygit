@@ -118,7 +118,7 @@ http://localhost:5050
 # 📁 Struktura projektu
 ```
 mygit/
-├── bin/                    # Pliki wykonywalne (CLI)
+├── bin/                   # Pliki wykonywalne (CLI)
 │   ├── mygit              # Wrapper SSH dla Synology
 │   └── mygit-local        # Lokalna wersja CLI
 ├── cli/                   # Kod źródłowy CLI (Commander.js)
