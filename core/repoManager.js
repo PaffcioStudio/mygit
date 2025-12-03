@@ -132,7 +132,7 @@ export async function deleteCommit(repoId, commitFile) {
   // Usuń plik .zip
   await fs.remove(commitPath);
   
-  // Zaktualizuj commits.json — usuń wpis
+  // Zaktualizuj commits.json
   const commFile = path.join(repoDir, "commits.json");
   const commits = (await fs.pathExists(commFile)) ? await fs.readJson(commFile) : [];
   const keep = commits.filter(c => path.basename(c.file) !== path.basename(commitPath));

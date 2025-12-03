@@ -9,77 +9,628 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
 
 <!-- Tailwind CDN -->
 <script src="https://cdn.tailwindcss.com"></script>
+<!-- Highlight.js dla kolorowej składni -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
 <style>
-  /* drobne poprawki i animacje */
-  .fade-in { animation: fadeIn .18s ease both; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
+  /* Podstawowe animacje */
+  .fade-in { animation: fadeIn .2s ease-out both; }
+  .fade-out { animation: fadeOut .2s ease-in both; }
+  .slide-up { animation: slideUp .3s cubic-bezier(0.4, 0, 0.2, 1) both; }
+  .slide-down { animation: slideDown .3s cubic-bezier(0.4, 0, 0.2, 1) both; }
+  .scale-in { animation: scaleIn .25s cubic-bezier(0.4, 0, 0.2, 1) both; }
+  .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  .bounce { animation: bounce 0.5s; }
+  .spin { animation: spin 1s linear infinite; }
+  .float { animation: float 3s ease-in-out infinite; }
+  .shimmer { animation: shimmer 2s infinite linear; }
+  .wiggle { animation: wiggle 0.5s ease-in-out; }
+  
+  @keyframes fadeIn { 
+    from { opacity: 0; transform: translateY(8px) scale(0.98); } 
+    to { opacity: 1; transform: translateY(0) scale(1); } 
+  }
+  
+  @keyframes fadeOut { 
+    from { opacity: 1; transform: translateY(0); } 
+    to { opacity: 0; transform: translateY(-8px); } 
+  }
+  
+  @keyframes slideUp { 
+    from { opacity: 0; transform: translateY(20px); } 
+    to { opacity: 1; transform: translateY(0); } 
+  }
+  
+  @keyframes slideDown { 
+    from { opacity: 0; transform: translateY(-20px); } 
+    to { opacity: 1; transform: translateY(0); } 
+  }
+  
+  @keyframes scaleIn { 
+    from { opacity: 0; transform: scale(0.9); } 
+    to { opacity: 1; transform: scale(1); } 
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(2deg); }
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
+  
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-3deg); }
+    75% { transform: rotate(3deg); }
+  }
+  
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  
+  @keyframes typing {
+    from { width: 0 }
+    to { width: 100% }
+  }
+  
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  
+  @keyframes ripple {
+    0% { transform: scale(0); opacity: 1; }
+    100% { transform: scale(4); opacity: 0; }
+  }
 
+  /* Style modali */
   .modal-bg { 
-    background: rgba(15,23,42,0.6); 
-    backdrop-filter: blur(4px); 
+    background: rgba(15, 23, 42, 0.7); 
+    backdrop-filter: blur(8px);
+    animation: fadeIn .15s ease-out;
   }
   
   /* Naprawa z-index */
   #browseOverlay { z-index: 9000 !important; }
   #overlay { z-index: 10000 !important; }
   
-  .file-row:hover { background-color: rgba(99,102,241,0.04); }
-  .clickable { cursor: pointer; }
-  .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Efekty hover */
+  .file-row { 
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
   
-  /* Nowe style dla breadcrumbs */
+  .file-row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.05), transparent);
+    transition: left 0.6s;
+  }
+  
+  .file-row:hover::before {
+    left: 100%;
+  }
+  
+  .file-row:hover { 
+    background-color: rgba(99, 102, 241, 0.06);
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.1);
+  }
+  
+  .clickable { 
+    cursor: pointer; 
+    transition: all 0.2s ease;
+  }
+  
+  .clickable:hover {
+    transform: scale(1.02);
+  }
+  
+  .ellipsis { 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+  }
+  
+  /* Breadcrumbs */
   .breadcrumbs-container {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 4px;
-    padding: 8px 12px;
-    background: #f8fafc;
+    gap: 6px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    margin-bottom: 12px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   }
+  
   .breadcrumb-item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     color: #6366f1;
     font-size: 13px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
   }
+  
   .breadcrumb-item:not(:last-child):after {
     content: "›";
     color: #94a3b8;
-    margin-left: 4px;
+    margin-left: 6px;
+    font-weight: bold;
   }
+  
   .breadcrumb-item:hover {
-    text-decoration: underline;
+    background-color: rgba(99, 102, 241, 0.1);
+    text-decoration: none;
   }
+  
   .breadcrumb-root {
-    font-weight: 600;
+    font-weight: 700;
   }
 
   /* Gradient backgrounds */
   .gradient-bg {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 6s ease infinite;
   }
   
+  .gradient-bg-alt {
+    background: linear-gradient(135deg, #667eea 0%, #60a5fa 100%);
+  }
+  
+  /* Cards */
   .card-hover {
-    transition: all 0.3s ease;
-    border: 1px solid #e2e8f0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .card-hover::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+  
+  .card-hover:hover::after {
+    transform: scaleX(1);
   }
   
   .card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    transform: translateY(-6px) scale(1.01);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12), 0 10px 20px -5px rgba(0, 0, 0, 0.08);
+    border-color: #c7d2fe;
   }
 
   /* Search animation */
   .search-container {
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid transparent;
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(135deg, #6366f1, #8b5cf6) border-box;
   }
 
   .search-container:focus-within {
-    transform: scale(1.02);
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.3);
+  }
+
+  /* Styl dla gwiazdek ulubionych */
+  .favourite-star {
+    color: #fbbf24;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    filter: drop-shadow(0 2px 4px rgba(251, 191, 36, 0.3));
+  }
+  
+  .favourite-star:hover {
+    transform: scale(1.3) rotate(15deg);
+  }
+  
+  .favourite-star.empty {
+    color: #d1d5db;
+    filter: none;
+  }
+  
+  .favourite-star.empty:hover {
+    color: #fbbf24;
+    filter: drop-shadow(0 2px 4px rgba(251, 191, 36, 0.3));
+  }
+
+  /* Styl dla dropdown sortowania */
+  .sort-dropdown {
+    position: relative;
+  }
+  
+  .sort-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 2px 10px rgba(0, 0, 0, 0.05);
+    min-width: 220px;
+    z-index: 1000;
+    overflow: hidden;
+    animation: slideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  
+  .sort-dropdown-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #374151;
+    font-size: 14px;
+    border-left: 3px solid transparent;
+  }
+  
+  .sort-dropdown-item:hover {
+    background-color: #f8fafc;
+    border-left-color: #6366f1;
+    padding-left: 20px;
+  }
+  
+  .sort-dropdown-item.active {
+    background-color: #f1f5fe;
+    color: #4f46e5;
+    font-weight: 600;
+    border-left-color: #4f46e5;
+  }
+
+  /* Animacja przycisku Skopiowano */
+  .copy-success {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    border-color: #10b981 !important;
+    animation: bounce 0.5s ease;
+  }
+  
+  @keyframes copySuccess {
+    0% { 
+      transform: scale(1); 
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    }
+    70% { 
+      transform: scale(1.05); 
+      box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+    }
+    100% { 
+      transform: scale(1); 
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+  }
+
+  /* Przyciski z efektami */
+  .btn-3d {
+    position: relative;
+    transition: all 0.2s ease;
+    transform: translateY(0);
+    box-shadow: 0 4px 0 rgba(79, 70, 229, 0.2);
+  }
+  
+  .btn-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 rgba(79, 70, 229, 0.2);
+  }
+  
+  .btn-3d:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 0 rgba(79, 70, 229, 0.2);
+  }
+  
+  /* Loading states */
+  .loading-shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  
+  /* Progress indicators */
+  .progress-bar {
+    position: relative;
+    overflow: hidden;
+    border-radius: 9999px;
+  }
+  
+  .progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: shimmer 2s infinite;
+  }
+  
+  /* Text effects */
+  .text-gradient {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Tooltip animations */
+  .tooltip {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .tooltip.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  
+  /* Ripple effect */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    transform: scale(0);
+    animation: ripple 0.6s linear;
+  }
+  
+  /* Card stacking effect */
+  .card-stack {
+    position: relative;
+  }
+  
+  .card-stack::before,
+  .card-stack::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: inherit;
+    box-shadow: inherit;
+    z-index: -1;
+  }
+  
+  .card-stack::before {
+    transform: translateY(4px) scale(0.98);
+    opacity: 0.6;
+  }
+  
+  .card-stack::after {
+    transform: translateY(8px) scale(0.96);
+    opacity: 0.3;
+  }
+  
+  /* Glass morphism */
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Typing animation */
+  .typing {
+    overflow: hidden;
+    border-right: 2px solid;
+    white-space: nowrap;
+    animation: typing 3.5s steps(40, end), blink 0.75s step-end infinite;
+  }
+  
+  /* Hover lift effect */
+  .hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Neon glow */
+  .neon-glow {
+    box-shadow: 0 0 5px #6366f1, 0 0 10px #6366f1, 0 0 15px #6366f1;
+    animation: pulse 2s infinite;
+  }
+  
+  /* Morphing border */
+  .morph-border {
+    position: relative;
+    border: 2px solid transparent;
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(45deg, #6366f1, #8b5cf6, #ec4899) border-box;
+    animation: gradientShift 3s ease infinite;
+  }
+  
+  /* Flip card */
+  .flip-card {
+    perspective: 1000px;
+  }
+  
+  .flip-card-inner {
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+  }
+  
+  .flip-card:hover .flip-card-inner {
+    transform: rotateY(180deg);
+  }
+  
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 10px;
+    transition: background 0.3s;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  }
+  
+  /* Highlight animation */
+  .highlight {
+    position: relative;
+  }
+  
+  .highlight::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #6366f1, transparent);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+  
+  .highlight:hover::after {
+    transform: scaleX(1);
+  }
+  
+  /* Colorful syntax for code preview */
+  .hljs-keyword { color: #ec4899; }
+  .hljs-string { color: #10b981; }
+  .hljs-number { color: #f59e0b; }
+  .hljs-function { color: #3b82f6; }
+  .hljs-comment { color: #6b7280; font-style: italic; }
+  .hljs-attr { color: #8b5cf6; }
+  .hljs-title { color: #6366f1; }
+  .hljs-tag { color: #ef4444; }
+  .hljs-params { color: #f97316; }
+  
+  /* Custom syntax highlighting for different file types */
+  .lang-javascript .hljs-built_in { color: #8b5cf6; }
+  .lang-typescript .hljs-built_in { color: #3b82f6; }
+  .lang-python .hljs-built_in { color: #10b981; }
+  .lang-bash .hljs-built_in { color: #f59e0b; }
+  .lang-json .hljs-attr { color: #6366f1; }
+  .lang-yaml .hljs-attr { color: #8b5cf6; }
+  .lang-html .hljs-tag { color: #ef4444; }
+  .lang-css .hljs-attribute { color: #3b82f6; }
+  .lang-markdown .hljs-section { color: #6366f1; font-weight: bold; }
+  
+  /* Pulse attention */
+  .attention-pulse {
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
+  /* Rotating gradient border */
+  .rotating-border {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  
+  .rotating-border::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #6366f1, #8b5cf6, #ec4899, #f59e0b, #6366f1);
+    background-size: 400% 400%;
+    animation: gradientShift 3s ease infinite;
+    border-radius: 14px;
+    z-index: -1;
+  }
+  
+  /* Staggered animation for lists */
+  .stagger-item {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: slideUp 0.3s ease forwards;
+  }
+  
+  .stagger-item:nth-child(1) { animation-delay: 0.05s; }
+  .stagger-item:nth-child(2) { animation-delay: 0.1s; }
+  .stagger-item:nth-child(3) { animation-delay: 0.15s; }
+  .stagger-item:nth-child(4) { animation-delay: 0.2s; }
+  .stagger-item:nth-child(5) { animation-delay: 0.25s; }
+  .stagger-item:nth-child(6) { animation-delay: 0.3s; }
+  .stagger-item:nth-child(7) { animation-delay: 0.35s; }
+  .stagger-item:nth-child(8) { animation-delay: 0.4s; }
+  .stagger-item:nth-child(9) { animation-delay: 0.45s; }
+  .stagger-item:nth-child(10) { animation-delay: 0.5s; }
+  
+  /* Background particle effect */
+  .particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  .particle {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #6366f1;
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  /* Terminal cursor effect */
+  .terminal-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background-color: #6366f1;
+    margin-left: 2px;
+    animation: blink 1s infinite;
   }
 </style>
 </head>
@@ -96,7 +647,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
           </div>
           <div>
             <h1 class="text-4xl font-extrabold text-slate-800">mygit</h1>
-            <p class="text-slate-600 mt-1">Lokalny system wersjonowania — prosto i szybko</p>
+            <p class="text-slate-600 mt-1">Lokalny system wersjonowania - prosto i szybko</p>
           </div>
         </div>
 
@@ -114,12 +665,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
               >
             </div>
           </div>
-          <button onclick="refresh()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 transition-colors">
-            <svg xmlns="http://www.w3.org2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
-            </svg>
-            Odśwież
-          </button>
         </div>
       </div>
 
@@ -132,10 +677,77 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
 
     <main class="grid grid-cols-1 lg:grid-cols-4 gap-6">
       <section class="lg:col-span-3 space-y-6">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h2 class="text-2xl font-bold text-slate-800">Twoje repozytoria</h2>
-          <div class="text-sm text-slate-500" id="repoCount">
-            <span id="visibleRepos">0</span> z <span id="totalRepos">0</span> repozytoriów
+          
+          <div class="flex items-center gap-3">
+            <div class="text-sm text-slate-500" id="repoCount">
+              <span id="visibleRepos">0</span> z <span id="totalRepos">0</span> repozytoriów
+            </div>
+            
+            <!-- Dropdown sortowania -->
+            <div class="sort-dropdown">
+              <button id="sortToggle" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h5a1 1 0 000-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
+                </svg>
+                Sortuj
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+              
+              <div id="sortDropdown" class="sort-dropdown-menu hidden">
+                <div class="sort-dropdown-item" data-sort="favourites">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  Tylko ulubione
+                </div>
+                <div class="sort-dropdown-item" data-sort="newest">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                  </svg>
+                  Najnowsze
+                </div>
+                <div class="sort-dropdown-item" data-sort="oldest">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                  </svg>
+                  Najstarsze
+                </div>
+                <div class="sort-dropdown-item" data-sort="a-z">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  </svg>
+                  A → Z
+                </div>
+                <div class="sort-dropdown-item" data-sort="z-a">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  </svg>
+                  Z → A
+                </div>
+                <div class="sort-dropdown-item" data-sort="size-large">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd" />
+                  </svg>
+                  Rozmiar ▼
+                </div>
+                <div class="sort-dropdown-item" data-sort="size-small">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M12 13a1 1 0 100 2h5a1 1 0 001-1V9a1 1 0 10-2 0v2.586l-4.293-4.293a1 1 0 00-1.414 0L8 9.586l-4.293-4.293a1 1 0 00-1.414 1.414l5 5a1 1 0 001.414 0L11 9.414 14.586 13H12z" clip-rule="evenodd" />
+                  </svg>
+                  Rozmiar ▲
+                </div>
+                <div class="sort-dropdown-item" data-sort="empty">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z" clip-rule="evenodd" />
+                  </svg>
+                  Tylko puste
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -148,7 +760,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <h3 class="text-lg font-medium text-slate-600 mb-2">Nie znaleziono repozytoriów</h3>
-          <p class="text-slate-500">Spróbuj zmienić zapytanie wyszukiwania</p>
+          <p class="text-slate-500">Spróbuj zmienić zapytanie wyszukiwania lub wybierz inny filtr sortowania</p>
         </div>
       </section>
 
@@ -191,6 +803,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
             <div id="statsRepos">Repozytoriów: 0</div>
             <div id="statsSnapshots">Snapshotów: 0</div>
             <div id="statsSize">Rozmiar danych: 0 MB</div>
+            <div id="statsFavourites">Ulubionych: 0</div>
           </div>
         </div>
       </aside>
@@ -218,8 +831,15 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
         <!-- dynamic -->
       </div>
 
-      <div class="mt-4 text-right">
-        <button id="panelClose2" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">Zamknij</button>
+      <div class="mt-4 text-right flex gap-2 justify-end">
+        <button id="copyButton" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+            <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+          </svg>
+          Skopiuj
+        </button>
+        <button id="panelClose2" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors">Zamknij</button>
       </div>
     </div>
   </div>
@@ -292,7 +912,7 @@ function fmtDate(d){
   return `${dd}-${mm}-${yyyy} | ${hh}:${min}:${ss}`;
 }
 
-// Główna funkcja fetch - używa XHR dla diff, fetch dla reszty
+// Główna funkcja fetch
 async function fetchJson(path, opts) {
   try {
     console.log(`🔍 Fetch: ${path}`);
@@ -345,12 +965,9 @@ async function fetchJson(path, opts) {
       }
     }
   } catch (e) {
-    // SPECJALNA OBSŁUGA: Ignoruj błędy z rozszerzeń (127.0.0.1:9614)
     if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
-      // Sprawdź czy to błąd z rozszerzenia React DevTools
       if (e.message.includes('127.0.0.1:9614') || e.message.includes('localhost:9614')) {
         console.warn('⚠️ Ignorowany błąd z React DevTools - próba ponowienia żądania...');
-        // Spróbuj ponownie bez signal/abort
         try {
           const fullPath = path.startsWith('http') ? path : window.location.origin + path;
           const r = await fetch(fullPath, {
@@ -379,139 +996,13 @@ async function fetchJson(path, opts) {
   }
 }
 
-// Normalny fetch z fallback do XHR
-async function fetchWithFallback(path, opts) {
-  try {
-    console.log(`🔍 Fetch: ${path}`);
-    
-    const fullPath = path.startsWith('http') ? path : window.location.origin + path;
-    
-    const r = await fetch(fullPath, {
-      ...opts,
-      headers: {
-        'Accept': 'application/json',
-        ...opts?.headers
-      }
-    });
-    
-    console.log(`📄 Response status: ${r.status} ${r.statusText} for ${path}`);
-    
-    if (!r.ok) {
-      const errorText = await r.text();
-      throw new Error(`HTTP ${r.status}: ${errorText || r.statusText}`);
-    }
-    
-    return await r.json();
-  } catch (e) {
-    // Jeśli fetch zawiedzie, spróbuj z XHR
-    if (e.name === 'TypeError' && e.message.includes('NetworkError')) {
-      console.warn('⚠️ Fetch failed, trying XHR fallback');
-      return await fetchWithXHR(path, opts);
-    }
-    throw e;
-  }
-}
-
-// XMLHttpRequest jako fallback (odporne na rozszerzenia)
-function fetchWithXHR(path, opts) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const fullPath = path.startsWith('http') ? path : window.location.origin + path;
-    
-    xhr.open(opts?.method || 'GET', fullPath);
-    xhr.timeout = 15000;
-    
-    // Ustaw nagłówki
-    xhr.setRequestHeader('Accept', 'application/json');
-    if (opts?.headers) {
-      Object.entries(opts.headers).forEach(([key, value]) => {
-        xhr.setRequestHeader(key, value);
-      });
-    }
-    
-    xhr.onload = function() {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const data = JSON.parse(xhr.responseText);
-          console.log(`✅ XHR success: ${path}`);
-          resolve(data);
-        } catch (e) {
-          reject(new Error('Nieprawidłowy format JSON w odpowiedzi'));
-        }
-      } else {
-        reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
-      }
-    };
-    
-    xhr.onerror = function() {
-      reject(new Error('Błąd sieci XHR'));
-    };
-    
-    xhr.ontimeout = function() {
-      reject(new Error('Timeout XHR'));
-    };
-    
-    // Obsługa danych w body dla POST/PUT
-    if (opts?.body) {
-      xhr.send(opts.body);
-    } else {
-      xhr.send();
-    }
-  });
-}
-
-// Fallback z XMLHttpRequest dla problemów z fetch
-function fetchWithXHR(path, opts) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const fullPath = path.startsWith('http') ? path : window.location.origin + path;
-    
-    xhr.open(opts?.method || 'GET', fullPath);
-    xhr.timeout = 15000;
-    
-    // Ustaw nagłówki
-    xhr.setRequestHeader('Accept', 'application/json');
-    if (opts?.headers) {
-      Object.entries(opts.headers).forEach(([key, value]) => {
-        xhr.setRequestHeader(key, value);
-      });
-    }
-    
-    xhr.onload = function() {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const data = JSON.parse(xhr.responseText);
-          resolve(data);
-        } catch (e) {
-          reject(new Error('Nieprawidłowy format JSON w odpowiedzi'));
-        }
-      } else {
-        reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
-      }
-    };
-    
-    xhr.onerror = function() {
-      reject(new Error('Błąd sieci'));
-    };
-    
-    xhr.ontimeout = function() {
-      reject(new Error('Timeout'));
-    };
-    
-    // Obsługa danych w body dla POST/PUT
-    if (opts?.body) {
-      xhr.send(opts.body);
-    } else {
-      xhr.send();
-    }
-  });
-}
-
 /* ------------------------
    App state
    ------------------------ */
 let repos = [];
 let filteredRepos = [];
+let favourites = [];
+let currentSort = 'newest';
 const reposContainer = document.getElementById('reposContainer');
 const searchInput = document.getElementById('searchInput');
 const noResults = document.getElementById('noResults');
@@ -522,6 +1013,124 @@ const serverInfo = document.getElementById('serverInfo');
 const statsRepos = document.getElementById('statsRepos');
 const statsSnapshots = document.getElementById('statsSnapshots');
 const statsSize = document.getElementById('statsSize');
+const statsFavourites = document.getElementById('statsFavourites');
+
+// Elementy sortowania
+const sortToggle = document.getElementById('sortToggle');
+const sortDropdown = document.getElementById('sortDropdown');
+
+// Obsługa dropdown sortowania
+sortToggle.addEventListener('click', (e) => {
+  e.stopPropagation();
+  sortDropdown.classList.toggle('hidden');
+});
+
+// Zamknij dropdown po kliknięciu gdzieś indziej
+document.addEventListener('click', () => {
+  sortDropdown.classList.add('hidden');
+});
+
+// Zapobieganie zamknięciu dropdown po kliknięciu w jego zawartość
+sortDropdown.addEventListener('click', (e) => {
+  e.stopPropagation();
+});
+
+// Obsługa wyboru sortowania
+sortDropdown.querySelectorAll('.sort-dropdown-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const sortType = item.dataset.sort;
+    setActiveSort(sortType);
+    sortRepos();
+    sortDropdown.classList.add('hidden');
+  });
+});
+
+function setActiveSort(sortType) {
+  currentSort = sortType;
+  
+  // Aktualizuj tekst przycisku
+  const sortLabels = {
+    'favourites': 'Tylko ulubione',
+    'newest': 'Najnowsze',
+    'oldest': 'Najstarsze',
+    'a-z': 'A → Z',
+    'z-a': 'Z → A',
+    'size-large': 'Rozmiar ▼',
+    'size-small': 'Rozmiar ▲',
+    'empty': 'Tylko puste'
+  };
+  
+  sortToggle.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h5a1 1 0 000-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
+    </svg>
+    ${sortLabels[sortType]}
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+      <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+    </svg>
+  `;
+  
+  // Usuń aktywną klasę ze wszystkich elementów
+  sortDropdown.querySelectorAll('.sort-dropdown-item').forEach(el => {
+    el.classList.remove('active');
+  });
+  
+  // Dodaj aktywną klasę do wybranego elementu
+  item = sortDropdown.querySelector(`[data-sort="${sortType}"]`);
+  if (item) item.classList.add('active');
+}
+
+// Funkcja sortowania repozytoriów
+function sortRepos() {
+  let sorted = [...filteredRepos];
+  
+  switch(currentSort) {
+    case 'favourites':
+      sorted = sorted.filter(repo => repo.isFavourite);
+      break;
+      
+    case 'newest':
+      sorted.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      break;
+      
+    case 'oldest':
+      sorted.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
+      break;
+      
+    case 'a-z':
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+      break;
+      
+    case 'z-a':
+      sorted.sort((a, b) => b.name.localeCompare(a.name));
+      break;
+      
+    case 'size-large':
+      sorted.sort((a, b) => (b.totalSize || 0) - (a.totalSize || 0));
+      break;
+      
+    case 'size-small':
+      sorted.sort((a, b) => (a.totalSize || 0) - (b.totalSize || 0));
+      break;
+      
+    case 'empty':
+      sorted = sorted.filter(repo => (repo.commitCount || 0) === 0);
+      break;
+  }
+  
+  // Ulubione zawsze na górze (poza sortem "favourites")
+  if (currentSort !== 'favourites') {
+    sorted.sort((a, b) => {
+      if (a.isFavourite && !b.isFavourite) return -1;
+      if (!a.isFavourite && b.isFavourite) return 1;
+      return 0;
+    });
+  }
+  
+  filteredRepos = sorted;
+  renderRepos();
+  updateRepoCount();
+}
 
 // Wyszukiwarka
 searchInput.addEventListener('input', (e) => {
@@ -540,7 +1149,7 @@ function filterRepos(query) {
     );
   }
   
-  renderRepos();
+  sortRepos();
   updateRepoCount();
 }
 
@@ -559,10 +1168,12 @@ function updateStats() {
   const totalSnapshots = repos.reduce((sum, repo) => sum + (repo.commitCount || 0), 0);
   const totalSize = repos.reduce((sum, repo) => sum + (repo.totalSize || 0), 0);
   const totalSizeMB = (totalSize / 1024 / 1024).toFixed(1);
+  const favouriteCount = repos.filter(repo => repo.isFavourite).length;
   
   statsRepos.textContent = `Repozytoriów: ${repos.length}`;
   statsSnapshots.textContent = `Snapshotów: ${totalSnapshots}`;
   statsSize.textContent = `Rozmiar danych: ${totalSizeMB} MB`;
+  statsFavourites.textContent = `Ulubionych: ${favouriteCount}`;
 }
 
 /* ------------------------
@@ -575,7 +1186,15 @@ async function refresh(){
   try {
     const data = await fetchJson('/api/repos');
     repos = data;
-    filteredRepos = [...repos];
+    
+    // Pobierz ulubione
+    const favData = await fetchJson('/api/favourites');
+    favourites = favData.favourites || [];
+    
+    // Ustaw flagę isFavourite na podstawie favourites
+    repos.forEach(repo => {
+      repo.isFavourite = favourites.includes(repo.id);
+    });
     
     // Pobierz dodatkowe statystyki dla każdego repo
     for (let repo of repos) {
@@ -583,12 +1202,14 @@ async function refresh(){
         const info = await fetchJson(`/api/repos/${repo.id}/info`);
         repo.commitCount = info.commitCount;
         repo.totalSize = info.totalSize;
+        repo.updatedAt = info.updatedAt || repo.updatedAt;
       } catch (e) {
         console.warn(`Nie udało się pobrać info dla ${repo.id}:`, e.message);
       }
     }
     
-    renderRepos();
+    filteredRepos = [...repos];
+    sortRepos();
     updateRepoCount();
     updateStats();
     
@@ -620,12 +1241,20 @@ function repoCardHtml(r){
   const commitCount = r.commitCount || 0;
   const sizeMB = r.totalSize ? (r.totalSize / 1024 / 1024).toFixed(1) : '0';
   const lastUpdate = r.updatedAt ? fmtDate(r.updatedAt) : 'Nieznana';
+  const isFavourite = r.isFavourite || false;
   
   return `
-  <div class="bg-white p-5 rounded-2xl shadow-sm border card-hover">
+  <div class="bg-white p-5 rounded-2xl shadow-sm border card-hover ${isFavourite ? 'border-yellow-200 bg-gradient-to-br from-white to-yellow-50' : ''}">
     <div class="flex justify-between items-start mb-3">
       <div class="flex-1 min-w-0">
-        <h2 class="text-xl font-semibold text-slate-800 truncate">${escapeHtml(r.name)}</h2>
+        <div class="flex items-center gap-2 mb-1">
+          <h2 class="text-xl font-semibold text-slate-800 truncate">${escapeHtml(r.name)}</h2>
+          <button class="favourite-btn favourite-star ${isFavourite ? 'favourite-star' : 'favourite-star empty'}" data-repo-id="${r.id}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="${isFavourite ? 'currentColor' : 'none'}" stroke="currentColor">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+          </button>
+        </div>
         <div class="text-sm text-slate-600 mt-1 line-clamp-2">${escapeHtml(r.description || 'Brak opisu')}</div>
       </div>
       <div class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full ml-2 flex-shrink-0">${escapeHtml(r.id)}</div>
@@ -683,7 +1312,7 @@ function repoCardHtml(r){
 function escapeHtml(s){ return String(s || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
 /* ------------------------
-   Delegated clicks (history, browse, delete)
+   Delegated clicks (history, browse, delete, favourite)
    ------------------------ */
 reposContainer.addEventListener('click', async (e) => {
   const card = e.target.closest('.card-hover');
@@ -697,10 +1326,53 @@ reposContainer.addEventListener('click', async (e) => {
     openBrowse(name);
   } else if (e.target.closest('.btn-delete')) {
     confirmDeleteRepo(name);
+  } else if (e.target.closest('.favourite-btn')) {
+    const repoId = e.target.closest('.favourite-btn').dataset.repoId;
+    await toggleFavourite(repoId, card);
   } else if (e.target.closest('.repo-history a.download-link')){
     // handled by link default
   }
 });
+
+// Obsługa ulubionych
+async function toggleFavourite(repoId, card) {
+  try {
+    const starBtn = card.querySelector('.favourite-btn');
+    const isFavourite = starBtn.classList.contains('favourite-star') && !starBtn.classList.contains('empty');
+    
+    if (isFavourite) {
+      // Usuń z ulubionych
+      await fetch(`/api/favourites/${repoId}`, { method: 'DELETE' });
+      starBtn.classList.add('empty');
+      starBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+      `;
+    } else {
+      // Dodaj do ulubionych
+      await fetch(`/api/favourites/${repoId}`, { method: 'POST' });
+      starBtn.classList.remove('empty');
+      starBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+      `;
+    }
+    
+    // Zaktualizuj statystyki
+    const repo = repos.find(r => r.id === repoId);
+    if (repo) {
+      repo.isFavourite = !isFavourite;
+    }
+    
+    updateStats();
+    sortRepos();
+    
+  } catch (error) {
+    console.error('Błąd zmiany ulubionych:', error);
+  }
+}
 
 /* ------------------------
    Toggle history
@@ -777,7 +1449,6 @@ async function previewDiff(repoId, fileEnc) {
     try {
       console.log(`🔍 Żądanie diff: ${repoId}, ${file}`);
       
-      // Użyjemy specjalnej funkcji dla diff która używa XHR
       const diff = await fetchJson(`/api/repos/${repoId}/diff/${encodeURIComponent(file)}`);
       
       console.log('✅ Otrzymano diff:', diff);
@@ -791,7 +1462,6 @@ async function previewDiff(repoId, fileEnc) {
     } catch (e) {
       console.error('❌ Błąd previewDiff:', e);
       
-      // Specjalna obsługa błędów związanych z rozszerzeniami
       if (e.message.includes('XHR') || e.message.includes('Network')) {
         body.innerHTML = `
           <div class="text-sm text-orange-600 bg-orange-50 p-6 rounded-lg">
@@ -842,7 +1512,6 @@ function retryDiff(repoId, fileEnc) {
 
 function renderDiff(diff){
   try {
-    // Jeśli to pierwszy commit, pokaż specjalny komunikat
     if (diff.info) {
       return `
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -854,7 +1523,6 @@ function renderDiff(diff){
       `;
     }
 
-    // Sprawdź czy diff ma wymagane pola
     if (!diff.added || !diff.removed || !diff.modified) {
       throw new Error('Brak wymaganych pól w danych diff');
     }
@@ -921,15 +1589,79 @@ function showOverlay(title, sub, onBodyReady){
   const panelTitle = document.getElementById('panelTitle');
   const panelSub = document.getElementById('panelSub');
   const panelBody = document.getElementById('panelBody');
+  const copyButton = document.getElementById('copyButton');
+  
   panelTitle.textContent = title;
   panelSub.textContent = sub || '';
   panelBody.innerHTML = '<div class="text-sm text-slate-500">Ładuję...</div>';
-  overlay.classList.remove('hidden'); overlay.classList.add('flex');
+  
+  // Ukryj przycisk kopiowania domyślnie
+  copyButton.classList.add('hidden');
+  
+  overlay.classList.remove('hidden'); 
+  overlay.classList.add('flex');
+  
   document.getElementById('panelClose').onclick = () => closeOverlay();
   document.getElementById('panelClose2').onclick = () => closeOverlay();
+  
   onBodyReady(panelBody);
 }
-function closeOverlay(){ document.getElementById('overlay').classList.add('hidden'); document.getElementById('overlay').classList.remove('flex'); }
+
+function closeOverlay(){ 
+  document.getElementById('overlay').classList.add('hidden'); 
+  document.getElementById('overlay').classList.remove('flex'); 
+}
+
+// Funkcja do kopiowania tekstu do schowka
+function setupCopyButton(content) {
+  const copyButton = document.getElementById('copyButton');
+  copyButton.classList.remove('hidden');
+  
+  copyButton.onclick = async () => {
+    try {
+      // Spróbuj użyć nowego API clipboard
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(content);
+      } else {
+        // Fallback dla starszych przeglądarek
+        const textArea = document.createElement('textarea');
+        textArea.value = content;
+        textArea.style.position = 'fixed';
+        textArea.style.top = '-9999px';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        const successful = document.execCommand('copy');
+        if (!successful) {
+          throw new Error('Nie udało się skopiować');
+        }
+        
+        document.body.removeChild(textArea);
+      }
+      
+      // Animacja sukcesu
+      const originalText = copyButton.innerHTML;
+      copyButton.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+        </svg>
+        Skopiowano!
+      `;
+      copyButton.classList.add('copy-success');
+      
+      setTimeout(() => {
+        copyButton.innerHTML = originalText;
+        copyButton.classList.remove('copy-success');
+      }, 2000);
+    } catch (err) {
+      console.error('Błąd kopiowania do schowka:', err);
+      // Pokazujemy prosty alert jeśli nie udało się skopiować
+      alert('Nie udało się skopiować do schowka. Skopiuj ręcznie: Ctrl+C');
+    }
+  };
+}
 
 /* ------------------------
    Confirm delete repo
@@ -937,18 +1669,37 @@ function closeOverlay(){ document.getElementById('overlay').classList.add('hidde
 function confirmDeleteRepo(repoId){
   showOverlay('Usuń repozytorium', `Usunięcie repozytorium ${repoId}`, (body) => {
     body.innerHTML = `
-      <div class="text-sm">Czy na pewno chcesz usunąć repozytorium <strong>${escapeHtml(repoId)}</strong>? <br><span class="text-xs text-slate-500">Operacja usunie wersje i metadane.</span></div>
-      <div class="mt-4 flex gap-2">
-        <button id="delYes" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 transition-colors">Tak, usuń</button>
-        <button id="delNo" class="bg-slate-100 px-3 py-2 rounded-md hover:bg-slate-200 transition-colors">Anuluj</button>
+      <div class="text-sm p-6 text-center">
+        <div class="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.974-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-800 mb-2">Usunąć repozytorium?</h3>
+        <p class="text-slate-600 mb-4">Czy na pewno chcesz usunąć repozytorium <strong class="font-semibold">${escapeHtml(repoId)}</strong>?</p>
+        <p class="text-xs text-slate-500 mb-6">Operacja usunie wszystkie wersje snapshotów i metadane. Tej akcji nie można cofnąć.</p>
+        <div class="flex gap-3 justify-center">
+          <button id="delYes" class="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            Tak, usuń
+          </button>
+          <button id="delNo" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-2.5 rounded-lg transition-colors">
+            Anuluj
+          </button>
+        </div>
       </div>
     `;
     body.querySelector('#delNo').onclick = closeOverlay;
     body.querySelector('#delYes').onclick = async () => {
       try {
         await fetch(`/api/repos/${repoId}`, { method: 'DELETE' });
-        closeOverlay(); refresh();
-      } catch (e){ body.innerHTML = `<div class="text-sm text-red-600">Błąd: ${e.message}</div>`; }
+        closeOverlay(); 
+        refresh();
+      } catch (e){ 
+        body.innerHTML = `<div class="text-sm text-red-600 p-4">Błąd: ${e.message}</div>`; 
+      }
     };
   });
 }
@@ -980,7 +1731,6 @@ function confirmDeleteSnap(repoId, fileEnc){
    Browse snapshot modal (tree)
    ------------------------ */
 async function openBrowse(repoId){
-  // open latest snapshot browse
   try {
     showBrowseOverlay(repoId, '');
     await loadBrowse(repoId, '');
@@ -992,7 +1742,7 @@ async function openBrowse(repoId){
 function showBrowseOverlay(repoId, path){
   document.getElementById('browseOverlay').classList.remove('hidden');
   document.getElementById('browseOverlay').classList.add('flex');
-  document.getElementById('browseTitle').textContent = `Zawartość snapshotu — ${repoId}`;
+  document.getElementById('browseTitle').textContent = `Zawartość snapshotu - ${repoId}`;
   document.getElementById('browseClose').onclick = () => { 
     document.getElementById('browseOverlay').classList.add('hidden'); 
     document.getElementById('browseOverlay').classList.remove('flex'); 
@@ -1005,15 +1755,12 @@ async function loadBrowse(repoId, path){
   listEl.innerHTML = '<div class="text-sm text-slate-500 p-3">Ładuję...</div>';
   
   try {
-    // backend should accept ?path=...
     const u = `/api/repos/${repoId}/browse` + (path ? `?path=${encodeURIComponent(path)}` : '');
     const resp = await fetchJson(u);
     const files = resp.files || [];
     
-    // Nowe breadcrumbs - bardziej czytelne
     renderBreadcrumbs(repoId, path, bc);
     
-    // render list
     if (!files.length) { 
       listEl.innerHTML = '<div class="text-sm text-slate-500 p-3">Pusty folder</div>'; 
       return; 
@@ -1081,7 +1828,6 @@ async function onBrowseClick(repoId, path, type){
     return;
   }
   
-  // Pobierz aktualny commit z danych przeglądania
   const browseData = await fetchJson(`/api/repos/${repoId}/browse?path=${encodeURIComponent(path.split('/').slice(0, -1).join('/'))}`);
   const commitFile = browseData.commitFile;
   
@@ -1089,9 +1835,9 @@ async function onBrowseClick(repoId, path, type){
   document.getElementById('fpType').textContent = 'Plik';
   document.getElementById('fpSize').textContent = '';
   
-  // Użyj nowego endpointu do pobierania plików
   const downloadUrl = `/api/repos/${repoId}/file/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`;
   const previewUrl = `/api/repos/${repoId}/preview/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`;
+  const checkFileUrl = `/api/repos/${repoId}/checkfile/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`;
   
   const dl = document.getElementById('downloadFile');
   dl.href = downloadUrl;
@@ -1099,32 +1845,326 @@ async function onBrowseClick(repoId, path, type){
   
   document.getElementById('openFileBtn').onclick = async () => { 
     try {
-      // Dla plików tekstowych - pokaż w modal, dla innych - otwórz w nowej karcie
-      const isText = /\.(txt|js|json|html|css|md|xml|yml|yaml)$/i.test(path);
-      if (isText) {
+      // Najpierw sprawdź czy plik jest tekstowy
+      const fileCheck = await fetchJson(checkFileUrl);
+      
+      if (fileCheck.isText || fileCheck.isContentText) {
         const preview = await fetchJson(previewUrl);
         showFilePreview(preview.content, path);
       } else {
         window.open(downloadUrl, '_blank');
       }
     } catch (e) {
-      window.open(downloadUrl, '_blank');
+      // Fallback: jeśli nie można sprawdzić, spróbuj podejrzeć
+      try {
+        const preview = await fetchJson(previewUrl);
+        showFilePreview(preview.content, path);
+      } catch (previewError) {
+        window.open(downloadUrl, '_blank');
+      }
     }
   };
 }
 
-// Dodaj funkcję do podglądu plików tekstowych
+// Dodaj funkcję do podglądu plików tekstowych z kolorową składnią
 function showFilePreview(content, filename) {
   showOverlay('Podgląd pliku', filename, (body) => {
+    const ext = filename.split('.').pop().toLowerCase();
+    const fileName = filename.split('/').pop().toLowerCase();
+    
+    // Rozszerzone mapowanie rozszerzeń plików na języki Highlight.js
+    const languageMap = {
+      // JavaScript i TypeScript
+      'js': 'javascript',
+      'jsx': 'javascript',
+      'mjs': 'javascript',
+      'cjs': 'javascript',
+      'ts': 'typescript',
+      'tsx': 'typescript',
+      
+      // Web
+      'html': 'html',
+      'htm': 'html',
+      'css': 'css',
+      'scss': 'scss',
+      'sass': 'sass',
+      'less': 'less',
+      
+      // Data & Config
+      'json': 'json',
+      'yml': 'yaml',
+      'yaml': 'yaml',
+      'xml': 'xml',
+      'toml': 'toml',
+      'ini': 'ini',
+      'cfg': 'ini',
+      'conf': 'ini',
+      'properties': 'properties',
+      
+      // Programming languages
+      'py': 'python',
+      'php': 'php',
+      'java': 'java',
+      'c': 'c',
+      'cpp': 'cpp',
+      'cc': 'cpp',
+      'h': 'c',
+      'hpp': 'cpp',
+      'cs': 'csharp',
+      'rb': 'ruby',
+      'go': 'go',
+      'rs': 'rust',
+      'swift': 'swift',
+      'kt': 'kotlin',
+      'scala': 'scala',
+      'pl': 'perl',
+      'lua': 'lua',
+      'groovy': 'groovy',
+      'dart': 'dart',
+      
+      // Shell & Scripts
+      'sh': 'bash',
+      'bash': 'bash',
+      'zsh': 'bash',
+      'fish': 'bash',
+      'ps1': 'powershell',
+      'bat': 'batch',
+      'cmd': 'batch',
+      
+      // Environment & Config files
+      'env': 'bash',
+      'env.example': 'bash',
+      'env.local': 'bash',
+      'env.development': 'bash',
+      'env.production': 'bash',
+      'env.test': 'bash',
+      'gitignore': 'gitignore',
+      'dockerignore': 'gitignore',
+      'editorconfig': 'editorconfig',
+      'prettierrc': 'json',
+      'eslintrc': 'json',
+      'eslintrc.json': 'json',
+      'babelrc': 'json',
+      'babelrc.json': 'json',
+      'npmrc': 'ini',
+      'yarnrc': 'ini',
+      'gitattributes': 'gitattributes',
+      'gitmodules': 'gitmodules',
+      'htaccess': 'apache',
+      'nginx': 'nginx',
+      
+      // Documentation
+      'md': 'markdown',
+      'markdown': 'markdown',
+      'txt': 'plaintext',
+      'rst': 'restructuredtext',
+      'adoc': 'asciidoc',
+      
+      // Database
+      'sql': 'sql',
+      'pgsql': 'sql',
+      'mysql': 'sql',
+      
+      // Templates
+      'ejs': 'ejs',
+      'pug': 'pug',
+      'jade': 'pug',
+      'hbs': 'handlebars',
+      'mustache': 'mustache',
+      
+      // Build & Package managers
+      'gradle': 'groovy',
+      'build': 'groovy',
+      'cmake': 'cmake',
+      'makefile': 'makefile',
+      'dockerfile': 'dockerfile',
+      'docker-compose.yml': 'yaml',
+      'docker-compose.yaml': 'yaml',
+      
+      // Logs
+      'log': 'plaintext',
+      
+      // Other
+      'svg': 'xml',
+      'graphql': 'graphql',
+      'gql': 'graphql',
+      'prisma': 'prisma',
+      'proto': 'protobuf'
+    };
+    
+    // Sprawdź czy to plik ukryty (z kropką na początku)
+    let lang = 'plaintext';
+    
+    if (fileName.startsWith('.') && fileName.length > 1) {
+      const hiddenFileName = fileName.substring(1);
+      // Sprawdź czy rozpoznajemy ten plik po nazwie bez kropki
+      if (languageMap[hiddenFileName]) {
+        lang = languageMap[hiddenFileName];
+      } else {
+        // Domyślnie dla ukrytych plików używamy 'plaintext' lub 'bash' dla skryptów
+        if (fileName.includes('env') || fileName.includes('sh') || fileName.includes('bash')) {
+          lang = 'bash';
+        } else if (fileName.includes('git')) {
+          lang = 'gitignore';
+        } else {
+          lang = 'plaintext';
+        }
+      }
+    } else {
+      // Spróbuj znaleźć język po rozszerzeniu
+      lang = languageMap[ext] || 'plaintext';
+    }
+    
+    // Specjalne przypadki dla plików bez rozszerzenia lub znanych nazw
+    if (!ext && fileName) {
+      if (fileName === 'dockerfile') lang = 'dockerfile';
+      else if (fileName === 'makefile') lang = 'makefile';
+      else if (fileName === 'procfile') lang = 'yaml';
+      else if (fileName === 'docker-compose.yml') lang = 'yaml';
+      else if (fileName === 'docker-compose.yaml') lang = 'yaml';
+      else if (fileName === 'package.json') lang = 'json';
+      else if (fileName === 'package-lock.json') lang = 'json';
+      else if (fileName === 'composer.json') lang = 'json';
+      else if (fileName === 'composer.lock') lang = 'json';
+      else if (fileName === 'gemfile') lang = 'ruby';
+      else if (fileName === 'cargo.toml') lang = 'toml';
+      else if (fileName === 'go.mod') lang = 'go';
+      else if (fileName === 'go.sum') lang = 'plaintext';
+      else if (fileName === 'pom.xml') lang = 'xml';
+      else if (fileName === 'build.gradle') lang = 'groovy';
+      else if (fileName === 'build.gradle.kts') lang = 'kotlin';
+      else if (fileName === 'gradlew') lang = 'bash';
+      else if (fileName === 'gradlew.bat') lang = 'batch';
+    }
+    
     body.innerHTML = `
-      <div class="mb-4">
-        <div class="text-sm text-slate-500 mb-2">Ścieżka: ${escapeHtml(filename)}</div>
-        <pre class="bg-slate-100 p-4 rounded-lg overflow-auto max-h-96 text-sm">${escapeHtml(content)}</pre>
-      </div>
-      <div class="flex gap-2">
-        <button onclick="closeOverlay()" class="bg-slate-100 px-4 py-2 rounded-md hover:bg-slate-200 transition-colors">Zamknij</button>
+      <div class="flex flex-col h-full">
+        <!-- Nagłówek z informacjami -->
+        <div class="flex-none mb-4">
+          <div class="flex items-center justify-between">
+            <div class="flex-1 min-w-0">
+              <div class="text-sm text-slate-500 mb-1 truncate">Ścieżka: ${escapeHtml(filename)}</div>
+              <div class="flex items-center gap-3">
+                <div class="font-medium text-slate-800 truncate">${fileName}</div>
+                <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-medium capitalize">
+                  ${lang.replace('-', ' ')}
+                </span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 text-sm text-slate-500">
+              <span class="flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm-1 4a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd" />
+                </svg>
+                ${content.split('\n').length} linii
+              </span>
+              <span class="flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" />
+                  <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                </svg>
+                ${content.length.toLocaleString()} znaków
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Główna zawartość - przewijalny kod -->
+        <div class="flex-1 min-h-0 bg-gray-900 rounded-xl overflow-hidden shadow-lg border border-gray-800">
+          <div class="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
+            <div class="flex items-center gap-2">
+              <div class="flex gap-1.5">
+                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+              </div>
+              <div class="text-xs text-gray-400 ml-2 font-mono">${fileName}</div>
+            </div>
+            <div class="text-xs text-gray-500 font-mono flex items-center gap-3">
+              <button class="copy-code-btn text-gray-400 hover:text-white transition-colors flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                  <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                </svg>
+                Kopiuj
+              </button>
+            </div>
+          </div>
+          
+          <!-- Kontener kodu z przewijaniem -->
+          <div class="h-full max-h-[calc(70vh-120px)] overflow-auto custom-scrollbar">
+            <pre class="bg-gray-900 text-gray-100 p-6 text-sm leading-relaxed m-0"><code class="language-${lang} hljs">${escapeHtml(content)}</code></pre>
+          </div>
+        </div>
+        
+        <!-- Stopka z informacjami -->
+        <div class="flex-none mt-4 pt-4 border-t border-slate-200">
+          <div class="flex items-center justify-between text-sm text-slate-500">
+            <div class="flex items-center gap-4">
+              <span class="flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                </svg>
+                Ostatnia modyfikacja: ${new Date().toLocaleDateString('pl-PL')}
+              </span>
+            </div>
+            <div class="text-xs text-slate-400 flex items-center gap-2">
+              <kbd class="px-2 py-1 bg-slate-100 rounded border border-slate-300">Shift</kbd>
+              +
+              <kbd class="px-2 py-1 bg-slate-100 rounded border border-slate-300">↑↓</kbd>
+              do przewijania
+            </div>
+          </div>
+        </div>
       </div>
     `;
+    
+    // Zastosuj highlight.js do kodu
+    const codeElement = body.querySelector('code');
+    if (codeElement) {
+      hljs.highlightElement(codeElement);
+    }
+    
+    // Dodaj obsługę przycisku kopiowania
+    const copyBtn = body.querySelector('.copy-code-btn');
+    copyBtn.onclick = async () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(content);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = content;
+          textArea.style.position = 'fixed';
+          textArea.style.top = '-9999px';
+          textArea.style.left = '-9999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+        
+        // Animacja sukcesu
+        const originalHTML = copyBtn.innerHTML;
+        copyBtn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+          </svg>
+          Skopiowano!
+        `;
+        copyBtn.classList.add('copy-success');
+        
+        setTimeout(() => {
+          copyBtn.innerHTML = originalHTML;
+          copyBtn.classList.remove('copy-success');
+        }, 2000);
+      } catch (err) {
+        console.error('Błąd kopiowania:', err);
+      }
+    };
+    
+    // Ustaw przycisk kopiowania w głównym modal (dolny przycisk)
+    setupCopyButton(content);
   });
 }
 
@@ -1132,33 +2172,275 @@ function showFilePreview(content, filename) {
    UI small helpers
    ------------------------ */
 function showHelp(){
-  showOverlay('Pomoc', 'Krótkie komendy', (body) => {
+  showOverlay('Pomoc - mygit', 'Wszystko co musisz wiedzieć o systemie wersjonowania mygit', (body) => {
     body.innerHTML = `
-      <div class="space-y-4">
-        <div>
-          <h4 class="font-semibold text-slate-800 mb-2">Podstawowe komendy:</h4>
-          <pre class="text-sm bg-slate-50 border p-3 rounded overflow-auto">mygit init                 # utwórz repo w bieżącym folderze
-mygit comment "opis"       # zmień opis repozytorium  
-mygit save "opis"          # zrób snapshot
-mygit log                  # pokaż historię
-mygit list                 # lista repozytoriów</pre>
+      <div class="space-y-8">
+        <!-- Nagłówek z ikoną -->
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v3a2 2 0 0 1-2 2h-3v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1H4a2 2 0 0 1-2-2v-3H1a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2h2z"/>
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-slate-800">mygit - System wersjonowania</h2>
+          <p class="text-slate-600 mt-2">Lokalny system do zarządzania snapshotami projektów</p>
         </div>
-        <div>
-          <h4 class="font-semibold text-slate-800 mb-2">Przykłady użycia:</h4>
-          <pre class="text-sm bg-slate-50 border p-3 rounded overflow-auto"># Utwórz repozytorium
+
+        <!-- Sekcja: Jak działa mygit -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-2xl border border-blue-100 slide-up">
+          <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
+            </svg>
+            Jak działa mygit?
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-blue-200 text-center hover-lift">
+              <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span class="text-blue-600 font-bold">1</span>
+              </div>
+              <h4 class="font-medium text-slate-800 mb-2">Inicjalizacja</h4>
+              <p class="text-sm text-slate-600">Utwórz repozytorium w aktualnym folderze</p>
+              <code class="block mt-2 text-xs bg-blue-50 text-blue-700 p-2 rounded">mygit init</code>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-blue-200 text-center hover-lift">
+              <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span class="text-blue-600 font-bold">2</span>
+              </div>
+              <h4 class="font-medium text-slate-800 mb-2">Snapshot</h4>
+              <p class="text-sm text-slate-600">Zrób backup projektu jako ZIP</p>
+              <code class="block mt-2 text-xs bg-blue-50 text-blue-700 p-2 rounded">mygit save "opis zmian"</code>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-blue-200 text-center hover-lift">
+              <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span class="text-blue-600 font-bold">3</span>
+              </div>
+              <h4 class="font-medium text-slate-800 mb-2">Przeglądanie</h4>
+              <p class="text-sm text-slate-600">Zobacz historię i przywróć pliki</p>
+              <code class="block mt-2 text-xs bg-blue-50 text-blue-700 p-2 rounded">mygit log</code>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja: Podstawowe komendy -->
+        <div class="bg-gradient-to-r from-emerald-50 to-green-50 p-5 rounded-2xl border border-emerald-100 slide-up" style="animation-delay: 0.1s">
+          <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+            Podstawowe komendy CLI
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
+                <div>
+                  <code class="text-sm font-mono text-slate-800">mygit init</code>
+                  <div class="text-xs text-slate-500 mt-1">Utwórz repozytorium</div>
+                </div>
+                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
+              </div>
+              <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
+                <div>
+                  <code class="text-sm font-mono text-slate-800">mygit comment "opis"</code>
+                  <div class="text-xs text-slate-500 mt-1">Zmień opis repozytorium</div>
+                </div>
+                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
+              </div>
+              <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
+                <div>
+                  <code class="text-sm font-mono text-slate-800">mygit save "opis"</code>
+                  <div class="text-xs text-slate-500 mt-1">Zrób snapshot</div>
+                </div>
+                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
+                <div>
+                  <code class="text-sm font-mono text-slate-800">mygit log</code>
+                  <div class="text-xs text-slate-500 mt-1">Pokaż historię</div>
+                </div>
+                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
+              </div>
+              <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
+                <div>
+                  <code class="text-sm font-mono text-slate-800">mygit status</code>
+                  <div class="text-xs text-slate-500 mt-1">Status repozytorium</div>
+                </div>
+                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
+              </div>
+              <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
+                <div>
+                  <code class="text-sm font-mono text-slate-800">mygit list</code>
+                  <div class="text-xs text-slate-500 mt-1">Lista repozytoriów</div>
+                </div>
+                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja: Przykłady użycia -->
+        <div class="bg-gradient-to-r from-amber-50 to-orange-50 p-5 rounded-2xl border border-amber-100 slide-up" style="animation-delay: 0.2s">
+          <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+            </svg>
+            Przykłady użycia
+          </h3>
+          <div class="space-y-4">
+            <div class="bg-white p-4 rounded-xl border border-amber-200 hover-lift">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-medium text-slate-800 mb-1">Nowy projekt</h4>
+                  <p class="text-sm text-slate-600 mb-2">Utwórz repozytorium dla nowego projektu. Nazwa będzie taka jak nazwa folderu.</p>
+                  <pre class="text-xs bg-amber-50 text-amber-800 p-3 rounded-lg overflow-x-auto"># Przejdź do folderu projektu
+cd /ścieżka/do/projektu
+
+# Utwórz repozytorium mygit
 mygit init
 
-# Zmień opis
-mygit comment "Mój projekt Node.js"
+# Nadaj opis projektowi
+mygit comment "Mój projekt Node.js - API serwer"</pre>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-amber-200 hover-lift">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-medium text-slate-800 mb-1">Regularne backupy</h4>
+                  <p class="text-sm text-slate-600 mb-2">Regularnie rób snapshoty po ważnych zmianach w kodzie.</p>
+                  <pre class="text-xs bg-amber-50 text-amber-800 p-3 rounded-lg overflow-x-auto"># Zrób snapshot z opisem zmian
+mygit save "Dodano endpoint /api/users"
 
-# Zrób snapshot  
-mygit save "Dodano nową funkcję"
+# Kolejny snapshot po kolejnych zmianach
+mygit save "Naprawiono bug z walidacją email"
 
-# Zobacz historię
+# Sprawdź historię snapshotów
 mygit log
 
-# Sprawdź status
+# Lub sprawdź status repozytorium
 mygit status</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja: Funkcje web panelu -->
+        <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-5 rounded-2xl border border-purple-100 slide-up" style="animation-delay: 0.3s">
+          <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
+            <svg xmlns="http://www.w3.org2000/svg" class="h-5 w-5 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+            </svg>
+            Funkcje panelu webowego
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-purple-200 hover-lift">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-medium text-slate-800">Ulubione repozytoria</h4>
+                  <p class="text-xs text-slate-600">Kliknij gwiazdkę aby oznaczyć ulubione</p>
+                </div>
+              </div>
+              <p class="text-sm text-slate-600">Ulubione repozytoria pojawiają się na górze listy i możesz filtrować tylko ulubione.</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-purple-200 hover-lift">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h5a1 1 0 000-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-medium text-slate-800">Zaawansowane sortowanie</h4>
+                  <p class="text-xs text-slate-600">Sortuj repozytoria na 8 sposobów</p>
+                </div>
+              </div>
+              <p class="text-sm text-slate-600">Sortuj według nazwy, daty, rozmiaru, pokazuj tylko ulubione lub puste repozytoria.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja: .mygitignore -->
+        <div class="bg-gradient-to-r from-rose-50 to-pink-50 p-5 rounded-2xl border border-rose-100 slide-up" style="animation-delay: 0.4s">
+          <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-rose-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+            Plik .mygitignore
+          </h3>
+          <div class="bg-white/80 p-4 rounded-xl border border-rose-200">
+            <p class="text-sm text-slate-700 mb-3">
+              Utwórz w swoim projekcie plik <code class="bg-rose-100 text-rose-800 px-2 py-1 rounded text-sm font-mono">.mygitignore</code>, 
+              który działa identycznie jak <code class="bg-rose-100 text-rose-800 px-2 py-1 rounded text-sm font-mono">.gitignore</code>.
+            </p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div class="font-medium text-sm text-slate-800 mb-2">Przykładowa zawartość:</div>
+                <pre class="text-xs bg-rose-50 text-rose-800 p-3 rounded-lg overflow-x-auto border border-rose-200">node_modules/
+.env
+*.log
+.DS_Store
+dist/
+build/
+coverage/
+*.tmp
+*.swp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*</pre>
+              </div>
+              <div>
+                <div class="font-medium text-sm text-slate-800 mb-2">Korzyści:</div>
+                <ul class="text-sm text-slate-600 space-y-2">
+                  <li class="flex items-start gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-rose-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Snapshoty zajmują mniej miejsca na dysku</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-rose-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Szybsze tworzenie snapshotów</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-rose-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Nie zapisujesz niepotrzebnych plików</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stopka -->
+        <div class="text-center pt-4 border-t border-slate-200">
+          <p class="text-sm text-slate-500">
+            <strong>mygit v1.0.0</strong> | 
+            System lokalnego wersjonowania | 
+            Panel dostępny na: <code class="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs">http://${window.location.host}</code>
+          </p>
         </div>
       </div>
     `;
@@ -1170,6 +2452,9 @@ mygit status</pre>
    ------------------------ */
 window.addEventListener('load', () => {
   refresh();
+  
+  // Ustaw domyślne sortowanie
+  setActiveSort('newest');
   
   // Focus na wyszukiwarkę po załadowaniu
   setTimeout(() => {

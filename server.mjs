@@ -48,6 +48,33 @@ console.log("  Data dir:", path.join(PROJECT_ROOT, "data"));
 const dataDir = path.join(PROJECT_ROOT, "data");
 await fs.ensureDir(path.join(dataDir, "repos"));
 
+// Ścieżka do pliku z ulubionymi
+const favouritesPath = path.join(dataDir, "favourites.json");
+
+// Inicjalizacja pliku z ulubionymi jeśli nie istnieje
+if (!(await fs.pathExists(favouritesPath))) {
+  await fs.writeJson(favouritesPath, { favourites: [] });
+}
+
+// Funkcje do zarządzania ulubionymi
+async function loadFavourites() {
+  try {
+    const data = await fs.readJson(favouritesPath);
+    return data.favourites || [];
+  } catch (error) {
+    console.error("Błąd ładowania ulubionych:", error);
+    return [];
+  }
+}
+
+async function saveFavourites(favourites) {
+  try {
+    await fs.writeJson(favouritesPath, { favourites }, { spaces: 2 });
+  } catch (error) {
+    console.error("Błąd zapisywania ulubionych:", error);
+  }
+}
+
 // === TRASY INTERFEJSU WEB ===
 app.get("/", (req, res) => {
   const indexPath = path.join(PROJECT_ROOT, "web", "index.html");
@@ -104,11 +131,61 @@ app.use('/api/repos/:id/info', (req, res, next) => {
 
 // === API ROUTES ===
 
-// Lista repozytoriów
+// Lista repozytoriów (z ulubionymi)
 app.get("/api/repos", async (req, res) => {
   try {
     const repos = await listRepos();
-    res.json(repos);
+    const favourites = await loadFavourites();
+    
+    // Dodaj flagę isFavourite do każdego repozytorium
+    const reposWithFavourites = repos.map(repo => ({
+      ...repo,
+      isFavourite: favourites.includes(repo.id)
+    }));
+    
+    res.json(reposWithFavourites);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Pobierz ulubione
+app.get("/api/favourites", async (req, res) => {
+  try {
+    const favourites = await loadFavourites();
+    res.json({ favourites });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Dodaj do ulubionych
+app.post("/api/favourites/:id", async (req, res) => {
+  try {
+    const repoId = req.params.id;
+    const favourites = await loadFavourites();
+    
+    if (!favourites.includes(repoId)) {
+      favourites.push(repoId);
+      await saveFavourites(favourites);
+    }
+    
+    res.json({ success: true, favourites });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Usuń z ulubionych
+app.delete("/api/favourites/:id", async (req, res) => {
+  try {
+    const repoId = req.params.id;
+    let favourites = await loadFavourites();
+    
+    favourites = favourites.filter(id => id !== repoId);
+    await saveFavourites(favourites);
+    
+    res.json({ success: true, favourites });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -222,10 +299,17 @@ app.delete("/api/repos/:id/commit/:file", async (req, res) => {
 // Usuwanie repo
 app.delete("/api/repos/:id", async (req, res) => {
   try {
-    const repoDir = path.join(dataDir, "repos", req.params.id);
+    const repoId = req.params.id;
+    const repoDir = path.join(dataDir, "repos", repoId);
     if (!(await fs.pathExists(repoDir))) {
       return res.status(404).json({ error: "Repozytorium nie istnieje." });
     }
+    
+    // Usuń również z ulubionych
+    const favourites = await loadFavourites();
+    const newFavourites = favourites.filter(id => id !== repoId);
+    await saveFavourites(newFavourites);
+    
     await fs.remove(repoDir);
     res.json({ success: true });
   } catch (e) {
@@ -420,6 +504,53 @@ app.get("*", (req, res) => {
   res.sendFile(indexPath);
 });
 
+// Sprawdź czy plik jest tekstowy
+app.get("/api/repos/:id/checkfile/:commitFile/:filePath(*)", async (req, res) => {
+  try {
+    const { id, commitFile, filePath } = req.params;
+    const zipPath = path.join(dataDir, "repos", id, "versions", commitFile);
+    
+    if (!(await fs.pathExists(zipPath))) {
+      return res.status(404).json({ error: "Snapshot nie istnieje." });
+    }
+
+    const zip = new AdmZip(zipPath);
+    const entry = zip.getEntry(filePath);
+    
+    if (!entry) {
+      return res.status(404).json({ error: "Plik nie istnieje w archiwum." });
+    }
+
+    // Sprawdź czy plik jest tekstowy
+    const isText = isTextFile(filePath);
+    
+    // Możemy też spróbować sprawdzić zawartość
+    let isContentText = false;
+    try {
+      const data = entry.getData();
+      // Próbujemy odczytać jako tekst UTF-8
+      const text = data.toString('utf8');
+      // Sprawdzamy czy zawiera znaki kontrolne (oprócz typowych dla tekstu)
+      const controlChars = text.split('').filter(c => {
+        const code = c.charCodeAt(0);
+        return (code < 32 && code !== 9 && code !== 10 && code !== 13) || code === 127;
+      }).length;
+      isContentText = controlChars / text.length < 0.1; // Mniej niż 10% znaków kontrolnych
+    } catch (e) {
+      isContentText = false;
+    }
+
+    res.json({
+      isText,
+      isContentText,
+      size: entry.header.size,
+      filename: path.basename(filePath)
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Błąd sprawdzania pliku: " + err.message });
+  }
+});
+
 // Pomocnicze funkcje
 function getContentType(filename) {
   const ext = path.extname(filename).toLowerCase();
@@ -445,8 +576,46 @@ function getContentType(filename) {
 
 function isTextFile(filename) {
   const ext = path.extname(filename).toLowerCase();
-  const textExtensions = ['.txt', '.js', '.json', '.html', '.css', '.md', '.xml', '.yml', '.yaml', '.php', '.py', '.java', '.c', '.cpp', '.h', '.cs', '.rb', '.go', '.rs', '.ts', '.jsx', '.tsx', '.vue', '.svelte'];
-  return textExtensions.includes(ext);
+  const textExtensions = [
+    '.txt', '.js', '.json', '.html', '.css', '.md', '.xml', '.yml', '.yaml',
+    '.php', '.py', '.java', '.c', '.cpp', '.h', '.cs', '.rb', '.go', '.rs',
+    '.ts', '.jsx', '.tsx', '.vue', '.svelte', '.sql', '.ini', '.cfg', '.conf',
+    '.log', '.sh', '.bash', '.zsh', '.fish', '.mjs', '.cjs', '.env', '.gitignore',
+    '.dockerignore', '.editorconfig', '.prettierrc', '.eslintrc', '.babelrc',
+    '.npmrc', '.yarnrc', '.gitattributes', '.gitmodules', '.htaccess', '.env.example',
+    '.env.local', '.env.development', '.env.production', '.env.test'
+  ];
+  
+  // Sprawdź po rozszerzeniu
+  if (textExtensions.includes(ext)) {
+    return true;
+  }
+  
+  // Sprawdź czy to plik ukryty (z kropką na początku nazwy)
+  const fileName = path.basename(filename).toLowerCase();
+  if (fileName.startsWith('.') && fileName.length > 1) {
+    // Wyjątek: niektóre pliki binarne mogą mieć kropkę, ale są binarne
+    const binaryHiddenFiles = ['.DS_Store', '.localized'];
+    if (binaryHiddenFiles.includes(fileName)) {
+      return false;
+    }
+    return true;
+  }
+  
+  // Sprawdź czy to znany plik tekstowy bez rozszerzenia
+  const knownTextFiles = [
+    'dockerfile', 'makefile', 'procfile', 'docker-compose.yml', 'docker-compose.yaml',
+    'docker-compose.override.yml', 'package.json', 'package-lock.json', 'yarn.lock',
+    'composer.json', 'composer.lock', 'gemfile', 'gemfile.lock', 'cargo.toml',
+    'cargo.lock', 'go.mod', 'go.sum', 'pom.xml', 'build.gradle', 'build.gradle.kts',
+    'settings.gradle', 'settings.gradle.kts', 'gradle.properties', 'gradle-wrapper.properties'
+  ];
+  
+  if (knownTextFiles.includes(fileName)) {
+    return true;
+  }
+  
+  return false;
 }
 
 // === Start serwera ===
@@ -467,5 +636,6 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("\n🚀 mygit uruchomiony!");
   console.log(`🌍  http://${localIp}:${PORT}`);
   console.log(`📁  Katalog danych: ${dataDir}/repos/`);
+  console.log(`💖  Plik ulubionych: ${favouritesPath}`);
   console.log(`🕓  Start: ${dayjs().format("DD.MM.YYYY | HH:mm:ss")}\n`);
 });

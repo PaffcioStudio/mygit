@@ -22,7 +22,7 @@ function getCurrentRepoName() {
   if (process.env.REPO_NAME && process.env.REPO_NAME.trim() !== "") {
     return process.env.REPO_NAME.trim();
   }
-  // W przeciwnym razie — nazwa bieżącego katalogu (lokalnie)
+  // W przeciwnym razie - nazwa bieżącego katalogu (lokalnie)
   return path.basename(process.cwd());
 }
 
@@ -399,13 +399,13 @@ Autor: Paffcio
 // === HELP ===
 program
   .name("mygit")
-  .description("🧠  mygit — lokalny system wersjonowania od Paffcia 💾")
+  .description("🧠  mygit - lokalny system wersjonowania od Paffcia 💾")
   .version("1.0.0");
 
 program.action(() => {
   console.log(`
 ╭────────────────────────────────────╮
-│  🧠  mygit — system wersjonowania  │
+│  🧠  mygit - system wersjonowania  │
 ╰────────────────────────────────────╯
 Użycie:
   mygit <komenda> [argumenty]
