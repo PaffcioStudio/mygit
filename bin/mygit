@@ -5,12 +5,15 @@
 # Wrapper przez SSH dla Synology DSM
 # =============================================================================
 
-# Stałe dane logowania (dostosuj do swoich)
-SSH_USER="Paffcio"
-SSH_HOST="192.168.0.130"
-REMOTE_DIR="/volume1/NodeServers/NodeServiceHUB/servers/mygit"
+# Dane logowania (skonfigurowane podczas instalacji)
+SSH_USER="paffcio"
+SSH_HOST="192.168.0.198"
+SSH_PORT="22"
+REMOTE_DIR="/home/paffcio/NodeServers/NodeServiceHUB/servers/mygit"
 REMOTE_CLI="${REMOTE_DIR}/cli/index.js"
-SSH_PASS="aA@512513314"
+SSH_PASS="logiNN"
+BACKEND_URL="http://192.168.0.198:3350"
+REMOTE_NODE_PATH="/usr/bin/node"
 
 # Kolorowe outputy
 RED='\033[0;31m'
@@ -42,70 +45,41 @@ log_command() {
     echo -e "${CYAN}🧠 mygit:${NC} $1" >&2
 }
 
-# Funkcja do tworzenia listy plików do uwzględnienia
-create_file_list() {
-    local file_list="/tmp/mygit_files_$$.txt"
-    
-    # Użyj find aby znaleźć wszystkie pliki, ale pomiń te wykluczone
-    local exclude_dirs=(".git" "node_modules" ".DS_Store" ".mygitignore")
-    
-    # Dodaj wzorce z .mygitignore jeśli istnieje
-    if [ -f ".mygitignore" ]; then
-        log_info "Uwzględniono plik .mygitignore"
-        while IFS= read -r pattern || [ -n "$pattern" ]; do
-            # Pomijaj komentarze i puste linie
-            pattern=$(echo "$pattern" | sed 's/#.*$//' | tr -d '[:space:]')
-            if [ -n "$pattern" ]; then
-                # Usuń końcowy / jeśli istnieje
-                pattern="${pattern%/}"
-                exclude_dirs+=("$pattern")
-            fi
-        done < ".mygitignore"
-    fi
-    
-    # Zbuduj polecenie find z wykluczeniami
-    local find_cmd="find . -type f"
-    for dir in "${exclude_dirs[@]}"; do
-        find_cmd="$find_cmd -not -path \"./$dir/*\" -not -name \"$dir\""
-    done
-    
-    # Wykonaj find i zapisz do pliku
-    eval $find_cmd > "$file_list"
-    
-    echo "$file_list"
-}
-
 # Pomoc dla użytkownika
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo -e "${MAGENTA}"
     echo "🧠 mygit - Zdalny system wersjonowania na Synology DSM"
-    echo "Globalny wrapper - wersja 1.1.0"
+    echo "Globalny wrapper - wersja 1.2.0"
     echo -e "${NC}"
     echo "Użycie:"
     echo "  mygit [komenda] [opcje]"
     echo ""
     echo "Podstawowe komendy:"
-    echo "  init            - Utwórz repozytorium w bieżącym folderu"
-    echo "  comment [opis]  - Zmień opis repozytorium"
-    echo "  save [opis]     - Zrób snapshot z opisem"
-    echo "  log             - Pokaż historię snapshotów"
-    echo "  status          - Pokaż status repozytorium"
-    echo "  list            - Lista wszystkich repozytoriów"
-    echo "  delete [plik]   - Usuń snapshot"
+    echo "  init                  - Utwórz repozytorium w bieżącym folderu"
+    echo "  comment [opis]        - Zmień opis repozytorium"
+    echo "  save [opis]           - Zrób snapshot z opisem"
+    echo "  log                   - Pokaż historię snapshotów"
+    echo "  status                - Pokaż status repozytorium"
+    echo "  list                  - Lista wszystkich repozytoriów"
+    echo "  delete [plik]         - Usuń snapshot"
+    echo "  get [repo[@snapshot]] - Pobierz snapshot (najnowszy lub konkretny)"
     echo ""
-    echo "Przykłady:"
-    echo "  mygit init"
-    echo "  mygit comment \"Mój projekt Node.js\""
-    echo "  mygit save \"Dodano nową funkcję\""
-    echo "  mygit log"
-    echo "  mygit status"
+    echo "Opcje dla get:"
+    echo "  -f, --force          Nadpisz istniejące pliki"
+    echo "  -b, --backup         Zrób backup przed nadpisaniem (domyślnie: tak)"
+    echo "  -d, --dry-run        Tylko pokaż co by zostało zrobione"
+    echo "  -o, --output DIR     Folder docelowy (domyślnie .)"
+    echo "  -s, --skip-conflicts Pomiń pliki gdzie lokalne są nowsze"
+    echo "  -t, --timeout SEC    Timeout pobierania (domyślnie: 60s)"
+    echo ""
+    echo "Przykłady get:"
+    echo "  mygit get                                    # Pobierz najnowszy snapshot bieżącego repo"
+    echo "  mygit get myproject                          # Pobierz najnowszy snapshot myproject"
+    echo "  mygit get myproject@2025-12-04_15-30-00.zip  # Pobierz konkretny snapshot"
+    echo "  mygit get myproject --force                  # Nadpisz wszystkie pliki"
+    echo "  mygit get --output /backup                   # Pobierz do folderu /backup"
+    echo "  mygit get --skip-conflicts                   # Pomiń pliki z konfliktami"
     exit 0
-fi
-
-# Sprawdź czy sshpass jest dostępny
-if ! command -v sshpass >/dev/null 2>&1; then
-    log_error "sshpass nie jest zainstalowany. Zainstaluj: sudo apt install sshpass"
-    exit 1
 fi
 
 # nazwa bieżącego folderu (repo)
@@ -118,58 +92,46 @@ else
     ARGS="$*"
 fi
 
-# Główna komenda
-log_command "Wysyłanie komendy do Synology DSM..."
-log_info "Repozytorium: $REPO_NAME"
-log_info "Lokalna ścieżka: $(pwd)"
-
 # Dla komendy 'save' przesyłamy pliki przez pipe tar
 if [ "$1" = "save" ] || [ "$1" = "push" ]; then
     log_info "Przygotowywanie do wysłania snapshotu..."
     
-    # Utwórz listę plików do uwzględnienia
-    FILE_LIST=$(create_file_list)
-    FILE_COUNT=$(wc -l < "$FILE_LIST")
-    log_info "Znaleziono $FILE_COUNT plików do wysłania"
+    # Utwórz tymczasowy katalog
+    TEMP_DIR="/tmp/mygit_temp_$$"
+    mkdir -p "$TEMP_DIR"
     
-    if [ "$FILE_COUNT" -eq 0 ]; then
-        log_error "Brak plików do wysłania!"
-        rm -f "$FILE_LIST"
-        exit 1
-    fi
+    # Skopiuj pliki (pomijając node_modules i inne)
+    rsync -av --exclude='node_modules' --exclude='.git' --exclude='.DS_Store' --exclude='*.log' . "$TEMP_DIR/" > /dev/null 2>&1
     
-    log_info "Wysyłanie plików na Synology (przez pipe tar)..."
+    # Przesyłamy pliki przez tar pipe
+    log_info "Wysyłanie plików na Synology..."
     
-    # Przesyłamy pliki przez tar pipe z listą plików do uwzględnienia
-    if ! tar -cz -T "$FILE_LIST" 2>/dev/null | 
-        sshpass -p "$SSH_PASS" ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            "${SSH_USER}@${SSH_HOST}" "
+    if ! tar -czf - -C "$TEMP_DIR" . 2>/dev/null |         sshpass -p "$SSH_PASS" ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$SSH_PORT"             "${SSH_USER}@${SSH_HOST}" "
             # Utwórz tymczasowy katalog
-            TEMP_DIR=\"/tmp/mygit_temp_\$\$\"
-            mkdir -p \"\$TEMP_DIR\"
+            REMOTE_TEMP=\"/tmp/mygit_remote_$$\"
+            mkdir -p \"$REMOTE_TEMP\"
             
             # Rozpakuj przychodzące dane tar
-            cd \"\$TEMP_DIR\" && tar -xzf -
+            cd \"$REMOTE_TEMP\" && tar -xzf -
             
             # Wykonaj komendę mygit
-            cd '${REMOTE_DIR}'
-            REPO_NAME='${REPO_NAME}' SOURCE_PATH=\"\$TEMP_DIR\" /usr/local/bin/node '${REMOTE_CLI}' ${ARGS}
+            cd '/home/paffcio/NodeServers/NodeServiceHUB/servers/mygit'
+            REPO_NAME='${REPO_NAME}' SOURCE_PATH=\"$REMOTE_TEMP\" ${REMOTE_NODE_PATH} '${REMOTE_CLI}' ${ARGS}
             
             # Posprzątaj
-            rm -rf \"\$TEMP_DIR\"
+            rm -rf \"$REMOTE_TEMP\"
             "; then
         log_error "Błąd podczas przesyłania lub wykonywania komendy na Synology!"
-        rm -f "$FILE_LIST"
+        rm -rf "$TEMP_DIR"
         exit 1
     fi
     
-    # Usuń listę plików
-    rm -f "$FILE_LIST"
+    # Posprzątaj
+    rm -rf "$TEMP_DIR"
     
 else
-    # Dla innych komend (init, comment, log, status, list) - normalne wykonanie
-    if ! sshpass -p "$SSH_PASS" ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        "${SSH_USER}@${SSH_HOST}" "cd '${REMOTE_DIR}' && REPO_NAME='${REPO_NAME}' /usr/local/bin/node '${REMOTE_CLI}' ${ARGS}"; then
+    # Dla innych komend - normalne wykonanie
+    if ! sshpass -p "$SSH_PASS" ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$SSH_PORT"         "${SSH_USER}@${SSH_HOST}" "cd '${REMOTE_DIR}' && REPO_NAME='${REPO_NAME}' ${REMOTE_NODE_PATH} '${REMOTE_CLI}' ${ARGS}"; then
         log_error "Błąd podczas wykonywania komendy na Synology!"
         exit 1
     fi
