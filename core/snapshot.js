@@ -16,7 +16,6 @@ const DEFAULT_IGNORES = [
   "*.log",
   "*.tmp",
   "*.swp",
-  ".mygitignore",
   "mygit",
   "mygit/",
   "mygit/*"
@@ -149,7 +148,7 @@ export async function commitSnapshot(sourcePath, destVersionsDir, message = "sna
 
   return new Promise((resolve, reject) => {
     output.on("close", async () => {
-      console.log(`\n✅ Snapshot zapisany (${(archive.pointer() / 1024 / 1024).toFixed(2)} MB): ${archiveName}`);
+      console.log(`\nSnapshot zapisany (${(archive.pointer() / 1024 / 1024).toFixed(2)} MB): ${archiveName}`);
       resolve({ archiveName, outPath, size: archive.pointer() });
     });
     

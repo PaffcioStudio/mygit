@@ -6,49 +6,53 @@ import AdmZip from "adm-zip";
 import dayjs from "dayjs";
 import os from "os";
 import { fileURLToPath } from "url";
-import { 
-  listRepos, 
-  createRepo, 
-  getRepoCommits, 
-  deleteCommit, 
-  computeDiff 
+import {
+  listRepos,
+  createRepo,
+  getRepoCommits,
+  deleteCommit,
+  computeDiff,
+  registerUploadedSnapshot,
+  updateRepoComment,
+  deleteRepo,
+  ensureRepoExists
 } from "./core/repoManager.js";
+// Import konfiguracji
+import { config } from "./core/utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = __dirname;
 const app = express();
 
-// SPECJALNA konfiguracja CORS z preflight
+// Konfiguracja limitu (tylko informacyjnie, bo streamujemy)
+const MAX_UPLOAD_SIZE = (config.maxZipSizeMB || 1024) + 'mb';
+
+// CORS
 app.use(cors({
-  origin: [
-    'http://192.168.0.197:3350',
-    'http://localhost:3350', 
-    'http://127.0.0.1:3350',
-    'http://192.168.0.197:3000',
-    'http://localhost:3000',
-    'chrome-extension://',
-    'moz-extension://'
-  ],
-  credentials: true,
+  origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Repo-Name']
 }));
 
-// Obsługa preflight requests
 app.options('*', cors());
-app.use(express.json({ limit: '50mb' }));
+
+// Middleware
+// WAŻNE: Usunięto express.raw, aby nie konsumować strumienia przed zapisem pliku!
+app.use(express.json({ limit: '50mb' })); 
 app.use(express.static(path.join(PROJECT_ROOT, "web")));
 
 console.log("🔧 Ścieżki projektu:");
 console.log("  PROJECT_ROOT:", PROJECT_ROOT);
 console.log("  Web dir:", path.join(PROJECT_ROOT, "web"));
-console.log("  Data dir:", path.join(PROJECT_ROOT, "data"));
+console.log("  Data dir:", config.dataDir);
 
-const dataDir = path.join(PROJECT_ROOT, "data");
+const dataDir = config.dataDir;
 await fs.ensureDir(path.join(dataDir, "repos"));
 
-// Ścieżka do pliku z ulubionymi
+const tempDir = path.join(os.tmpdir(), "mygit_uploads");
+await fs.ensureDir(tempDir);
+
 const favouritesPath = path.join(dataDir, "favourites.json");
 
 // Inicjalizacja pliku z ulubionymi jeśli nie istnieje
@@ -81,75 +85,117 @@ app.get("/", (req, res) => {
   res.sendFile(indexPath);
 });
 
-// Middleware do blokowania requestów z rozszerzeń
+// Middleware do logowania requestów z rozszerzeń (opcjonalne)
 app.use((req, res, next) => {
-  const userAgent = req.get('User-Agent') || '';
-  const origin = req.get('Origin') || '';
-  const referer = req.get('Referer') || '';
-  
-  // TYLKO LOGUJ requesty z rozszerzeń, NIE BLOKUJ
-  const extensionPatterns = [
-    'chrome-extension://',
-    '127.0.0.1:9614',
-    'localhost:9614',
-    'moz-extension://'
-  ];
-  
-  const isExtension = extensionPatterns.some(pattern => 
-    origin.includes(pattern) || 
-    referer.includes(pattern) ||
-    userAgent.includes('React DevTools')
-  );
-  
-  if (isExtension) {
-    console.log(`⚠️ Request z rozszerzenia: ${origin} ${req.method} ${req.path}`);
-    // NIE BLOKUJ - pozwól przejść dalej
-  }
-  
   next();
 });
 
-// Cache headers dla statycznych danych
+// Cache headers
 app.use('/api/repos/:id/diff/:file', (req, res, next) => {
-  // Wyłącz cache dla diff żądań - często się zmieniają
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
   next();
 });
 
-// Cache dla innych endpointów
 app.use('/api/repos/:id/history', (req, res, next) => {
-  res.setHeader('Cache-Control', 'max-age=60'); // 1 minuta cache
+  res.setHeader('Cache-Control', 'max-age=60');
   next();
 });
 
 app.use('/api/repos/:id/info', (req, res, next) => {
-  res.setHeader('Cache-Control', 'max-age=120'); // 2 minuty cache
+  res.setHeader('Cache-Control', 'max-age=120');
   next();
 });
 
-// === API ROUTES ===
+// === API ROUTES (NOWE - ZAPIS/POST) ===
 
-// Lista repozytoriów (z ulubionymi)
+// 1. INIT - Utworzenie nowego repozytorium
+app.post("/api/repos", async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    if (!name) throw new Error("Wymagana nazwa repozytorium");
+    
+    if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+      throw new Error("Nazwa może zawierać tylko litery, cyfry, myślniki i podkreślenia");
+    }
+
+    const result = await createRepo(name, name, description);
+    console.log(`Utworzono repozytorium: ${name}`);
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// 2. SAVE - Upload snapshotu (binary stream)
+app.post("/api/repos/:id/snapshot", async (req, res) => {
+  const repoId = req.params.id;
+  const message = req.query.message || "snapshot";
+  const tempFile = path.join(tempDir, `${repoId}_${Date.now()}.zip`);
+  
+  console.log(`Odbieranie snapshotu dla ${repoId}...`);
+
+  try {
+    await ensureRepoExists(repoId);
+
+    // Bezpośrednie strumieniowanie requestu do pliku
+    const writeStream = fs.createWriteStream(tempFile);
+    
+    await new Promise((resolve, reject) => {
+      req.pipe(writeStream);
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+      req.on('error', (err) => {
+        writeStream.destroy();
+        reject(err);
+      });
+    });
+
+    const stat = await fs.stat(tempFile);
+    if (stat.size === 0) {
+      throw new Error("Otrzymano pusty plik (błąd strumieniowania)");
+    }
+
+    const result = await registerUploadedSnapshot(repoId, tempFile, message);
+    
+    console.log(`Snapshot zapisany: ${result.file} (${(result.size / 1024 / 1024).toFixed(2)} MB)`);
+    res.json(result);
+
+  } catch (e) {
+    console.error(`❌ Błąd uploadu: ${e.message}`);
+    if (await fs.pathExists(tempFile)) {
+      await fs.remove(tempFile);
+    }
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 3. COMMENT - Aktualizacja opisu
+app.post("/api/repos/:id/comment", async (req, res) => {
+  try {
+    const { description } = req.body;
+    const result = await updateRepoComment(req.params.id, description);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// === API ROUTES (ODCZYT/GET/DELETE) ===
+
 app.get("/api/repos", async (req, res) => {
   try {
     const repos = await listRepos();
     const favourites = await loadFavourites();
-    
-    // Dodaj flagę isFavourite do każdego repozytorium
     const reposWithFavourites = repos.map(repo => ({
       ...repo,
       isFavourite: favourites.includes(repo.id)
     }));
-    
     res.json(reposWithFavourites);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// Pobierz ulubione
 app.get("/api/favourites", async (req, res) => {
   try {
     const favourites = await loadFavourites();
@@ -159,39 +205,32 @@ app.get("/api/favourites", async (req, res) => {
   }
 });
 
-// Dodaj do ulubionych
 app.post("/api/favourites/:id", async (req, res) => {
   try {
     const repoId = req.params.id;
     const favourites = await loadFavourites();
-    
     if (!favourites.includes(repoId)) {
       favourites.push(repoId);
       await saveFavourites(favourites);
     }
-    
     res.json({ success: true, favourites });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// Usuń z ulubionych
 app.delete("/api/favourites/:id", async (req, res) => {
   try {
     const repoId = req.params.id;
     let favourites = await loadFavourites();
-    
     favourites = favourites.filter(id => id !== repoId);
     await saveFavourites(favourites);
-    
     res.json({ success: true, favourites });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// Historia commitów
 app.get("/api/repos/:id/history", async (req, res) => {
   try {
     const commits = await getRepoCommits(req.params.id);
@@ -201,7 +240,6 @@ app.get("/api/repos/:id/history", async (req, res) => {
   }
 });
 
-// Pobranie CAŁEGO snapshotu (pliku ZIP)
 app.get("/api/repos/:id/download/:file", async (req, res) => {
   try {
     const filePath = path.join(dataDir, "repos", req.params.id, "versions", req.params.file);
@@ -214,13 +252,10 @@ app.get("/api/repos/:id/download/:file", async (req, res) => {
   }
 });
 
-// Pobieranie POJEDYNCZEGO pliku z snapshotu
 app.get("/api/repos/:id/file/:commitFile/:filePath(*)", async (req, res) => {
   try {
     const { id, commitFile, filePath } = req.params;
     const zipPath = path.join(dataDir, "repos", id, "versions", commitFile);
-    
-    console.log(`📁 Pobieranie pliku: ${filePath} z ${zipPath}`);
     
     if (!(await fs.pathExists(zipPath))) {
       return res.status(404).json({ error: "Snapshot nie istnieje." });
@@ -239,7 +274,6 @@ app.get("/api/repos/:id/file/:commitFile/:filePath(*)", async (req, res) => {
     res.setHeader("Content-Type", contentType);
     res.setHeader("Content-Length", data.length);
     
-    // Dla plików tekstowych - pokaż w przeglądarce, dla innych - pobierz
     if (isTextFile(filePath)) {
       res.setHeader("Content-Disposition", `inline; filename="${path.basename(filePath)}"`);
     } else {
@@ -253,7 +287,6 @@ app.get("/api/repos/:id/file/:commitFile/:filePath(*)", async (req, res) => {
   }
 });
 
-// Podgląd zawartości pliku tekstowego
 app.get("/api/repos/:id/preview/:commitFile/:filePath(*)", async (req, res) => {
   try {
     const { id, commitFile, filePath } = req.params;
@@ -286,8 +319,11 @@ app.get("/api/repos/:id/preview/:commitFile/:filePath(*)", async (req, res) => {
   }
 });
 
-// Usuwanie snapshotu
 app.delete("/api/repos/:id/commit/:file", async (req, res) => {
+  // Wymuszenie nagłówków CORS dla DELETE, aby uniknąć NetworkError w Firefox
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  
   try {
     await deleteCommit(req.params.id, req.params.file);
     res.json({ success: true });
@@ -296,7 +332,6 @@ app.delete("/api/repos/:id/commit/:file", async (req, res) => {
   }
 });
 
-// Usuwanie repo
 app.delete("/api/repos/:id", async (req, res) => {
   try {
     const repoId = req.params.id;
@@ -305,7 +340,6 @@ app.delete("/api/repos/:id", async (req, res) => {
       return res.status(404).json({ error: "Repozytorium nie istnieje." });
     }
     
-    // Usuń również z ulubionych
     const favourites = await loadFavourites();
     const newFavourites = favourites.filter(id => id !== repoId);
     await saveFavourites(newFavourites);
@@ -317,13 +351,16 @@ app.delete("/api/repos/:id", async (req, res) => {
   }
 });
 
-// Przeglądanie snapshotu
 app.get("/api/repos/:id/browse", async (req, res) => {
   try {
     const repoId = req.params.id;
-    const relPath = req.query.path || "";
-    const commitFile = req.query.commit;
+    // FIX: Usuwanie podwójnych slashy (// -> /)
+    let relPath = (req.query.path || "").replace(/\/+/g, '/');
+    if (relPath.endsWith('/')) {
+      relPath = relPath.slice(0, -1);
+    }
     
+    const commitFile = req.query.commit;
     const versionsDir = path.join(dataDir, "repos", repoId, "versions");
 
     if (!(await fs.pathExists(versionsDir))) {
@@ -335,39 +372,34 @@ app.get("/api/repos/:id/browse", async (req, res) => {
       return res.status(404).json({ error: "Brak snapshotów." });
     }
 
-    // Użyj określonego commita lub najnowszego
     const targetZip = commitFile && versions.includes(commitFile) 
       ? commitFile 
       : versions.sort().reverse()[0];
 
     const zipPath = path.join(versionsDir, targetZip);
-    const zip = new AdmZip(zipPath);
+    
+    if (!(await fs.pathExists(zipPath))) {
+        return res.status(404).json({ error: "Plik snapshotu nie istnieje." });
+    }
 
+    const zip = new AdmZip(zipPath);
     const seen = new Set();
     const entries = [];
 
     zip.getEntries().forEach(e => {
       let entryPath = e.entryName;
-      
-      if (entryPath.endsWith('/')) {
-        entryPath = entryPath.slice(0, -1);
-      }
+      if (entryPath.endsWith('/')) entryPath = entryPath.slice(0, -1);
 
       if (relPath) {
-        if (!entryPath.startsWith(relPath) || entryPath === relPath) {
-          return;
-        }
+        const prefix = relPath + '/';
+        if (!entryPath.startsWith(prefix)) return;
         
-        let relativeToPath = entryPath.substring(relPath.length);
-        if (relativeToPath.startsWith('/')) {
-          relativeToPath = relativeToPath.substring(1);
-        }
-        
+        const relativeToPath = entryPath.substring(prefix.length);
         const parts = relativeToPath.split('/');
-        if (parts.length === 0) return;
+        if (parts.length === 0 || (parts.length === 1 && parts[0] === '')) return;
         
         const topLevelName = parts[0];
-        const fullPath = relPath ? `${relPath}/${topLevelName}` : topLevelName;
+        const fullPath = `${relPath}/${topLevelName}`; // Budujemy czystą ścieżkę
         
         if (seen.has(fullPath)) return;
         seen.add(fullPath);
@@ -382,6 +414,7 @@ app.get("/api/repos/:id/browse", async (req, res) => {
       } else {
         const parts = entryPath.split('/');
         const topLevelName = parts[0];
+        
         if (seen.has(topLevelName)) return;
         seen.add(topLevelName);
         
@@ -396,38 +429,26 @@ app.get("/api/repos/:id/browse", async (req, res) => {
     });
 
     entries.sort((a, b) => {
-      if (a.type === b.type) {
-        return a.name.localeCompare(b.name);
-      }
+      if (a.type === b.type) return a.name.localeCompare(b.name);
       return a.type === 'dir' ? -1 : 1;
     });
 
-    res.json({ 
-      commitFile: targetZip, 
-      files: entries,
-      currentPath: relPath 
-    });
+    res.json({ commitFile: targetZip, files: entries, currentPath: relPath });
   } catch (err) {
     res.status(500).json({ error: "Błąd przeglądania: " + err.message });
   }
 });
 
-// Diff z rozbudowanym porównaniem
+// === POPRAWIONY ENDPOINT DIFF ===
 app.get("/api/repos/:id/diff/:file", async (req, res) => {
+  // Wymuś nagłówki CORS, żeby przeglądarka i AV nie blokowały odpowiedzi
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+
   try {
     const { id, file } = req.params;
-    console.log(`🔍 Diff request: repo=${id}, file=${file}`);
-    
     const diff = await computeDiff(id, file);
-    console.log(`✅ Diff result:`, {
-      added: diff.added?.length || 0,
-      removed: diff.removed?.length || 0,
-      modified: diff.modified?.length || 0,
-      prev: diff.prev,
-      current: diff.current
-    });
     
-    // Upewnij się, że zawsze zwracasz obiekt z wymaganymi polami
     const response = {
       added: diff.added || [],
       removed: diff.removed || [],
@@ -442,29 +463,99 @@ app.get("/api/repos/:id/diff/:file", async (req, res) => {
       },
       info: diff.info || null
     };
-    
-    console.log(`📤 Sending diff response for ${file}`);
     res.json(response);
   } catch (err) {
-    console.error("❌ Błąd w endpoint diff:", err);
-    res.status(500).json({ 
-      error: "Błąd diff: " + err.message,
-      added: [],
-      removed: [],
-      modified: [],
-      prev: null,
-      current: req.params.file,
-      stats: {
-        added: 0,
-        removed: 0,
-        modified: 0,
-        totalChanges: 0
-      }
-    });
+    if (err.message.includes("Nie znaleziono") || err.message.includes("not found")) {
+      console.warn(`⚠️  Diff warning: ${err.message}`);
+      res.status(404).json({ error: err.message });
+    } else {
+      console.error("❌ Błąd w endpoint diff:", err);
+      // Zawsze zwracamy JSON, nawet przy 500, żeby frontend nie dostał NetworkError
+      res.status(500).json({ 
+        error: "Błąd diff: " + err.message,
+        added: [],
+        removed: [],
+        modified: [],
+        prev: null,
+        current: req.params.file,
+        stats: { added: 0, removed: 0, modified: 0, totalChanges: 0 }
+      });
+    }
   }
 });
 
-// Informacje o repozytorium
+app.get("/api/repos/:id/latest", async (req, res) => {
+  try {
+    const repoId = req.params.id;
+    const repoDir = path.join(dataDir, "repos", repoId);
+    const versionsDir = path.join(repoDir, "versions");
+    
+    if (!(await fs.pathExists(repoDir))) {
+      return res.status(404).json({ error: "Repozytorium nie istnieje." });
+    }
+
+    const versions = await fs.readdir(versionsDir);
+    if (!versions.length) {
+      return res.status(404).json({ error: "Brak snapshotów." });
+    }
+
+    const latest = versions.sort().reverse()[0];
+    const filePath = path.join(versionsDir, latest);
+
+    const commitsPath = path.join(repoDir, "commits.json");
+    const commits = await fs.readJson(commitsPath);
+    const commit = commits.find(c => c.file === latest) || {};
+
+    res.json({
+      file: latest,
+      path: filePath,
+      size: (await fs.stat(filePath)).size,
+      date: commit.date,
+      message: commit.message
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/repos/:id/snapshot/:file", async (req, res) => {
+  try {
+    const repoId = req.params.id;
+    const snapshotFile = req.params.file;
+    const repoDir = path.join(dataDir, "repos", repoId);
+    const versionsDir = path.join(repoDir, "versions");
+    
+    if (!(await fs.pathExists(repoDir))) {
+      return res.status(404).json({ error: "Repozytorium nie istnieje." });
+    }
+
+    const versions = await fs.readdir(versionsDir);
+    if (!versions.length) {
+      return res.status(404).json({ error: "Brak snapshotów." });
+    }
+
+    const target = versions.find(v => v.startsWith(snapshotFile));
+    if (!target) {
+      return res.status(404).json({ error: `Snapshot nie znaleziony.` });
+    }
+
+    const filePath = path.join(versionsDir, target);
+    const commitsPath = path.join(repoDir, "commits.json");
+    const commits = await fs.readJson(commitsPath);
+    const commit = commits.find(c => c.file === target) || {};
+
+    res.json({
+      file: target,
+      path: filePath,
+      size: (await fs.stat(filePath)).size,
+      date: commit.date,
+      message: commit.message
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/repos/:id/info", async (req, res) => {
   try {
     const repoId = req.params.id;
@@ -498,13 +589,13 @@ app.get("/api/repos/:id/info", async (req, res) => {
   }
 });
 
-// Fallback dla SPA
+// Fallback
 app.get("*", (req, res) => {
   const indexPath = path.join(PROJECT_ROOT, "web", "index.html");
   res.sendFile(indexPath);
 });
 
-// Sprawdź czy plik jest tekstowy
+// CheckFile
 app.get("/api/repos/:id/checkfile/:commitFile/:filePath(*)", async (req, res) => {
   try {
     const { id, commitFile, filePath } = req.params;
@@ -521,21 +612,17 @@ app.get("/api/repos/:id/checkfile/:commitFile/:filePath(*)", async (req, res) =>
       return res.status(404).json({ error: "Plik nie istnieje w archiwum." });
     }
 
-    // Sprawdź czy plik jest tekstowy
     const isText = isTextFile(filePath);
     
-    // Możemy też spróbować sprawdzić zawartość
     let isContentText = false;
     try {
       const data = entry.getData();
-      // Próbujemy odczytać jako tekst UTF-8
       const text = data.toString('utf8');
-      // Sprawdzamy czy zawiera znaki kontrolne (oprócz typowych dla tekstu)
       const controlChars = text.split('').filter(c => {
         const code = c.charCodeAt(0);
         return (code < 32 && code !== 9 && code !== 10 && code !== 13) || code === 127;
       }).length;
-      isContentText = controlChars / text.length < 0.1; // Mniej niż 10% znaków kontrolnych
+      isContentText = controlChars / text.length < 0.1;
     } catch (e) {
       isContentText = false;
     }
@@ -586,15 +673,12 @@ function isTextFile(filename) {
     '.env.local', '.env.development', '.env.production', '.env.test'
   ];
   
-  // Sprawdź po rozszerzeniu
   if (textExtensions.includes(ext)) {
     return true;
   }
   
-  // Sprawdź czy to plik ukryty (z kropką na początku nazwy)
   const fileName = path.basename(filename).toLowerCase();
   if (fileName.startsWith('.') && fileName.length > 1) {
-    // Wyjątek: niektóre pliki binarne mogą mieć kropkę, ale są binarne
     const binaryHiddenFiles = ['.DS_Store', '.localized'];
     if (binaryHiddenFiles.includes(fileName)) {
       return false;
@@ -602,7 +686,6 @@ function isTextFile(filename) {
     return true;
   }
   
-  // Sprawdź czy to znany plik tekstowy bez rozszerzenia
   const knownTextFiles = [
     'dockerfile', 'makefile', 'procfile', 'docker-compose.yml', 'docker-compose.yaml',
     'docker-compose.override.yml', 'package.json', 'package-lock.json', 'yarn.lock',
@@ -619,7 +702,8 @@ function isTextFile(filename) {
 }
 
 // === Start serwera ===
-const PORT = process.env.PORT || 3350;
+// Pobieranie portu z configa lub domyślnie 3350
+const PORT = config.port || 3350;
 
 const nets = os.networkInterfaces();
 let localIp = "localhost";
@@ -633,9 +717,9 @@ for (const name of Object.keys(nets)) {
 }
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log("\n🚀 mygit uruchomiony!");
-  console.log(`🌍  http://${localIp}:${PORT}`);
-  console.log(`📁  Katalog danych: ${dataDir}/repos/`);
-  console.log(`💖  Plik ulubionych: ${favouritesPath}`);
-  console.log(`🕓  Start: ${dayjs().format("DD.MM.YYYY | HH:mm:ss")}\n`);
+  console.log("\nmygit SERVER (REST API Mode)");
+  console.log(`http://${localIp}:${PORT}`);
+  console.log(`Katalog danych: ${dataDir}`);
+  console.log(`Config: Port=${PORT}, MaxSize=${MAX_UPLOAD_SIZE}`);
+  console.log(`Start: ${dayjs().format("DD.MM.YYYY | HH:mm:ss")}\n`);
 });

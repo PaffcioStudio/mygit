@@ -1,149 +1,416 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# 🧠 mygit - Zdalny system wersjonowania na Synology DSM
-# Wrapper przez SSH dla Synology DSM
+# 🧠 mygit - Klient REST API (Bash)
+# Wersja: 2.2.0 (Pretty UI)
 # =============================================================================
 
-# Dane logowania (skonfigurowane podczas instalacji)
-SSH_USER="paffcio"
-SSH_HOST="192.168.0.198"
-SSH_PORT="22"
-REMOTE_DIR="/home/paffcio/NodeServers/NodeServiceHUB/servers/mygit"
-REMOTE_CLI="${REMOTE_DIR}/cli/index.js"
-SSH_PASS="logiNN"
-BACKEND_URL="http://192.168.0.198:3350"
-REMOTE_NODE_PATH="/usr/bin/node"
+# Konfiguracja
+CONFIG_DIR="$HOME/.config/mygit"
+CONFIG_FILE="$CONFIG_DIR/config.json"
+REPO_NAME=$(basename "$PWD")
 
-# Kolorowe outputy
+# Kolory i Style
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
-NC='\033[0m' # No Color
+WHITE='\033[1;37m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
 
-# Funkcja logowania
-log_info() {
-    echo -e "${BLUE}ℹ️  mygit:${NC} $1" >&2
+# --- FUNKCJE POMOCNICZE ---
+
+log_info() { echo -e "${BLUE}ℹ️  mygit:${NC} $1" >&2; }
+log_success() { echo -e "${GREEN}✅ mygit:${NC} $1" >&2; }
+log_warning() { echo -e "${YELLOW}⚠️  mygit:${NC} $1" >&2; }
+log_error() { echo -e "${RED}❌ mygit:${NC} $1" >&2; }
+
+check_deps() {
+    local missing=0
+    for cmd in curl jq zip unzip; do
+        if ! command -v $cmd >/dev/null 2>&1; then
+            log_error "Brak wymaganej komendy: $cmd"
+            missing=1
+        fi
+    done
+    if [ $missing -eq 1 ]; then
+        echo "Zainstaluj brakujące narzędzia (np. sudo apt install curl jq zip unzip)"
+        exit 1
+    fi
 }
 
-log_success() {
-    echo -e "${GREEN}✅ mygit:${NC} $1" >&2
+load_config() {
+    if [ ! -f "$CONFIG_FILE" ]; then
+        log_error "Brak pliku konfiguracji: $CONFIG_FILE"
+        echo "Uruchom ponownie skrypt install.sh lub utwórz plik ręcznie."
+        exit 1
+    fi
+    BACKEND_URL=$(jq -r '.backend.baseUrl' "$CONFIG_FILE")
+    if [ "$BACKEND_URL" == "null" ] || [ -z "$BACKEND_URL" ]; then
+        log_error "Błędna konfiguracja: brak backend.baseUrl"
+        exit 1
+    fi
 }
 
-log_warning() {
-    echo -e "${YELLOW}⚠️  mygit:${NC} $1" >&2
+format_bytes() {
+    local bytes=$1
+    if [ -z "$bytes" ] || [ "$bytes" == "null" ]; then echo "0 B"; return; fi
+    if [ $bytes -lt 1024 ]; then echo "${bytes} B";
+    elif [ $bytes -lt 1048576 ]; then echo "$(echo "scale=2; $bytes/1024" | bc) KB";
+    else echo "$(echo "scale=2; $bytes/1048576" | bc) MB"; fi
 }
 
-log_error() {
-    echo -e "${RED}❌ mygit:${NC} $1" >&2
+# Funkcja do ładnego wyświetlania pojedynczego wpisu (używana w log i search)
+print_commit_entry() {
+    local file="$1"
+    local date="$2"
+    local msg="$3"
+    local size="$4"
+
+    # Czyszczenie daty (z formatu ISO na czytelniejszy: YYYY-MM-DD HH:MM)
+    # Usuwa 'T', usuwa sekundy i milisekundy
+    local clean_date=$(echo "$date" | sed 's/T/ /; s/\..*//' | cut -d: -f1,2)
+
+    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}📦 ${file}${NC}"
+    echo -e "   ${DIM}📅 ${clean_date}      💾 $(format_bytes $size)${NC}"
+    echo -e "   ${BOLD}💭 ${msg}${NC}"
 }
 
-log_command() {
-    echo -e "${CYAN}🧠 mygit:${NC} $1" >&2
+# --- KOMENDY ---
+
+cmd_init() {
+    local desc="${1:-Repozytorium $REPO_NAME}"
+    log_info "Inicjalizacja repozytorium '$REPO_NAME' na serwerze..."
+    local json=$(jq -n --arg name "$REPO_NAME" --arg desc "$desc" '{name: $name, description: $desc}')
+    local response=$(curl -s -X POST -H "Content-Type: application/json" -d "$json" "$BACKEND_URL/api/repos")
+    if echo "$response" | grep -q "error"; then
+        log_error "Błąd: $(echo "$response" | jq -r '.error')"
+        exit 1
+    fi
+    log_success "Repozytorium utworzone!"
 }
 
-# Pomoc dla użytkownika
-if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-    echo -e "${MAGENTA}"
-    echo "🧠 mygit - Zdalny system wersjonowania na Synology DSM"
-    echo "Globalny wrapper - wersja 1.2.0"
-    echo -e "${NC}"
-    echo "Użycie:"
-    echo "  mygit [komenda] [opcje]"
-    echo ""
-    echo "Podstawowe komendy:"
-    echo "  init                  - Utwórz repozytorium w bieżącym folderu"
-    echo "  comment [opis]        - Zmień opis repozytorium"
-    echo "  save [opis]           - Zrób snapshot z opisem"
-    echo "  log                   - Pokaż historię snapshotów"
-    echo "  status                - Pokaż status repozytorium"
-    echo "  list                  - Lista wszystkich repozytoriów"
-    echo "  delete [plik]         - Usuń snapshot"
-    echo "  get [repo[@snapshot]] - Pobierz snapshot (najnowszy lub konkretny)"
-    echo ""
-    echo "Opcje dla get:"
-    echo "  -f, --force          Nadpisz istniejące pliki"
-    echo "  -b, --backup         Zrób backup przed nadpisaniem (domyślnie: tak)"
-    echo "  -d, --dry-run        Tylko pokaż co by zostało zrobione"
-    echo "  -o, --output DIR     Folder docelowy (domyślnie .)"
-    echo "  -s, --skip-conflicts Pomiń pliki gdzie lokalne są nowsze"
-    echo "  -t, --timeout SEC    Timeout pobierania (domyślnie: 60s)"
-    echo ""
-    echo "Przykłady get:"
-    echo "  mygit get                                    # Pobierz najnowszy snapshot bieżącego repo"
-    echo "  mygit get myproject                          # Pobierz najnowszy snapshot myproject"
-    echo "  mygit get myproject@2025-12-04_15-30-00.zip  # Pobierz konkretny snapshot"
-    echo "  mygit get myproject --force                  # Nadpisz wszystkie pliki"
-    echo "  mygit get --output /backup                   # Pobierz do folderu /backup"
-    echo "  mygit get --skip-conflicts                   # Pomiń pliki z konfliktami"
-    exit 0
-fi
+cmd_save() {
+    local msg="${1:-snapshot}"
+    log_info "Przygotowywanie snapshotu dla '$REPO_NAME'..."
+    local check=$(curl -s -o /dev/null -w "%{http_code}" "$BACKEND_URL/api/repos/$REPO_NAME/info")
+    if [ "$check" != "200" ]; then
+        log_error "Repozytorium nie istnieje na serwerze. Użyj najpierw: mygit init"
+        exit 1
+    fi
 
-# nazwa bieżącego folderu (repo)
-REPO_NAME=$(basename "$(pwd)")
+    local exclude_args="-x \"*.git*\" \"node_modules/*\""
+    if [ -f ".mygitignore" ]; then
+        while IFS= read -r pattern || [ -n "$pattern" ]; do
+            pattern=$(echo "$pattern" | sed 's/#.*$//' | tr -d '[:space:]')
+            if [ -n "$pattern" ]; then
+                exclude_args="$exclude_args \"$pattern*\""
+            fi
+        done < ".mygitignore"
+    fi
 
-# Jeśli nie podano argumentów – pokaż pomoc
-if [ $# -eq 0 ]; then
-    ARGS="--help"
-else
-    ARGS="$*"
-fi
-
-# Dla komendy 'save' przesyłamy pliki przez pipe tar
-if [ "$1" = "save" ] || [ "$1" = "push" ]; then
-    log_info "Przygotowywanie do wysłania snapshotu..."
+    log_info "Pakowanie i wysyłanie..."
+    local encoded_msg=$(jq -nr --arg v "$msg" '$v|@uri')
     
-    # Utwórz tymczasowy katalog
-    TEMP_DIR="/tmp/mygit_temp_$$"
-    mkdir -p "$TEMP_DIR"
+    # ZIP -> PIPE -> CURL
+    eval "zip -r -q - . $exclude_args" | \
+    curl -s -X POST --data-binary @- \
+         "$BACKEND_URL/api/repos/$REPO_NAME/snapshot?message=$encoded_msg" \
+         -H "Content-Type: application/zip" > /tmp/mygit_response.json
+
+    local response=$(cat /tmp/mygit_response.json)
+    if echo "$response" | grep -q "error"; then
+        log_error "Błąd uploadu: $(echo "$response" | jq -r '.error')"
+        rm -f /tmp/mygit_response.json
+        exit 1
+    fi
+
+    local file=$(echo "$response" | jq -r '.file')
+    local size=$(echo "$response" | jq -r '.size')
+    log_success "Zapisano snapshot: $file ($(format_bytes $size))"
+    rm -f /tmp/mygit_response.json
+}
+
+cmd_list() {
+    log_info "Lista repozytoriów na $BACKEND_URL:"
+    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+    curl -s "$BACKEND_URL/api/repos" | jq -r '.[] | "\(.id)|\(.description // "brak opisu")"' | while IFS='|' read -r id desc; do
+        echo -e "${CYAN}📦 ${id}${NC}"
+        echo -e "   ${DIM}${desc}${NC}"
+    done
+    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+}
+
+cmd_log() {
+    log_info "Historia snapshotów dla '$REPO_NAME':"
+    local response=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/history")
+    if echo "$response" | grep -q "error"; then
+        echo "Brak historii lub repozytorium nie istnieje."
+        return
+    fi
     
-    # Skopiuj pliki (pomijając node_modules i inne)
-    rsync -av --exclude='node_modules' --exclude='.git' --exclude='.DS_Store' --exclude='*.log' . "$TEMP_DIR/" > /dev/null 2>&1
+    # Używamy jq do sformatowania danych w jedną linię oddzieloną pipe'ami, a potem czytamy w pętli
+    echo "$response" | jq -r '.[] | "\(.file)|\(.date)|\(.message)|\(.size)"' | head -n 15 | while IFS='|' read -r file date msg size; do
+        print_commit_entry "$file" "$date" "$msg" "$size"
+    done
+    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+}
+
+cmd_status() {
+    local response=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/info")
+    if echo "$response" | grep -q "error"; then
+        log_error "Repozytorium nie istnieje."
+        return
+    fi
+    local desc=$(echo "$response" | jq -r '.description')
+    local count=$(echo "$response" | jq -r '.commitCount')
+    local total=$(echo "$response" | jq -r '.totalSize')
+    local last=$(echo "$response" | jq -r '.lastCommit.file // "brak"')
     
-    # Przesyłamy pliki przez tar pipe
-    log_info "Wysyłanie plików na Synology..."
+    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+    echo -e "${MAGENTA}📊 STATUS: ${BOLD}$REPO_NAME${NC}"
+    echo -e "   📝 Opis:       ${WHITE}$desc${NC}"
+    echo -e "   📦 Snapshoty:  ${WHITE}$count${NC}"
+    echo -e "   💾 Rozmiar:    ${WHITE}$(format_bytes $total)${NC}"
+    echo -e "   🕒 Ostatni:    ${CYAN}$last${NC}"
+    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+}
+
+cmd_comment() {
+    local comment="$1"
+    if [ -z "$comment" ]; then log_error "Podaj treść komentarza"; exit 1; fi
+    local json=$(jq -n --arg desc "$comment" '{description: $desc}')
+    curl -s -X POST -H "Content-Type: application/json" -d "$json" "$BACKEND_URL/api/repos/$REPO_NAME/comment" > /dev/null
+    log_success "Zaktualizowano opis."
+}
+
+cmd_delete() {
+    local target="$1"
+    if [ -z "$target" ]; then log_error "Podaj nazwę pliku snapshotu do usunięcia"; exit 1; fi
+    curl -s -X DELETE "$BACKEND_URL/api/repos/$REPO_NAME/commit/$target" > /dev/null
+    log_success "Usunięto snapshot $target"
+}
+
+cmd_get() {
+    local target="$1"
+    local force=0
+    # Obsługa flag (np. -f)
+    if [[ "$1" == "-f" ]] || [[ "$1" == "--force" ]]; then force=1; shift; target="$1"; fi
+    if [[ "$2" == "-f" ]] || [[ "$2" == "--force" ]]; then force=1; fi
+
+    local fetch_repo="$REPO_NAME"
+    local fetch_file=""
     
-    if ! tar -czf - -C "$TEMP_DIR" . 2>/dev/null |         sshpass -p "$SSH_PASS" ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$SSH_PORT"             "${SSH_USER}@${SSH_HOST}" "
-            # Utwórz tymczasowy katalog
-            REMOTE_TEMP=\"/tmp/mygit_remote_$$\"
-            mkdir -p \"$REMOTE_TEMP\"
+    # Parsowanie targetu (repo@plik lub samo repo)
+    if [[ "$target" == *@* ]]; then
+        fetch_repo="${target%@*}"
+        fetch_file="${target#*@}"
+    elif [ -n "$target" ] && [[ "$target" != -* ]]; then
+        fetch_repo="$target"
+    fi
+
+    log_info "Pobieranie z $fetch_repo..."
+    local url
+    if [ -n "$fetch_file" ]; then
+        url="$BACKEND_URL/api/repos/$fetch_repo/snapshot/$fetch_file"
+    else
+        url="$BACKEND_URL/api/repos/$fetch_repo/latest"
+    fi
+    
+    # 1. Pobranie informacji o pliku
+    local info=$(curl -s "$url")
+    if echo "$info" | grep -q "error"; then
+        log_error "Błąd: $(echo "$info" | jq -r '.error')"
+        exit 1
+    fi
+    local zip_name=$(echo "$info" | jq -r '.file')
+    local zip_size=$(echo "$info" | jq -r '.size')
+    
+    log_info "Znaleziono: $zip_name ($(format_bytes $zip_size))"
+    
+    # 2. Pobranie pliku ZIP
+    local tmp_zip=$(mktemp)
+    # curl -# wyświetla prosty pasek postępu
+    curl -# -o "$tmp_zip" "$BACKEND_URL/api/repos/$fetch_repo/download/$zip_name"
+    
+    # 3. Backup (jeśli nie użyto --force)
+    if [ $force -eq 0 ]; then
+        local timestamp=$(date +%Y%m%d_%H%M%S)
+        local backup_dir=".mygit_backup_$timestamp"
+        
+        # Sprawdzamy czy są jakiekolwiek pliki do backupu (pomijając .git, node_modules i sam backup)
+        if [ "$(ls -A . 2>/dev/null)" ]; then
+            log_warning "Robienie szybkiego backupu do: $backup_dir..."
+            mkdir -p "$backup_dir"
             
-            # Rozpakuj przychodzące dane tar
-            cd \"$REMOTE_TEMP\" && tar -xzf -
-            
-            # Wykonaj komendę mygit
-            cd '/home/paffcio/NodeServers/NodeServiceHUB/servers/mygit'
-            REPO_NAME='${REPO_NAME}' SOURCE_PATH=\"$REMOTE_TEMP\" ${REMOTE_NODE_PATH} '${REMOTE_CLI}' ${ARGS}
-            
-            # Posprzątaj
-            rm -rf \"$REMOTE_TEMP\"
-            "; then
-        log_error "Błąd podczas przesyłania lub wykonywania komendy na Synology!"
-        rm -rf "$TEMP_DIR"
+            # Kopiujemy wszystko oprócz katalogów backupu i tmp (prosty rsync lub cp)
+            # Używamy rsync jeśli jest (szybszy), lub cp
+            if command -v rsync >/dev/null 2>&1; then
+                rsync -a --exclude=".mygit_backup_*" --exclude="node_modules" --exclude=".git" . "$backup_dir"
+            else
+                # Fallback dla cp (mniej precyzyjny przy exclude, ale działa)
+                cp -r * "$backup_dir" 2>/dev/null || true
+            fi
+        fi
+    fi
+
+    # 4. Rozpakowanie
+    log_info "📦 Rozpakowywanie..."
+    
+    # Flaga -o (overwrite) wymusza nadpisanie bez pytań
+    # Flaga -q (quiet) wycisza listę plików
+    unzip -o -q "$tmp_zip" -d .
+    
+    rm "$tmp_zip"
+    
+    if [ $force -eq 0 ] && [ -d "$backup_dir" ]; then
+        log_success "Pobrano snapshot. Backup zmian lokalnych: $backup_dir"
+    else
+        log_success "Pobrano i nadpisano pliki."
+    fi
+}
+
+# --- NOWE KOMENDY ---
+
+cmd_delete_repo() {
+    echo -e "${RED}⚠️  UWAGA! To usunie CAŁE repozytorium '$REPO_NAME' z serwera i całą jego historię.${NC}"
+    read -p "Czy na pewno chcesz kontynuować? (wpisz nazwę repozytorium, aby potwierdzić): " confirm
+    
+    if [ "$confirm" != "$REPO_NAME" ]; then
+        log_info "Anulowano. Nazwa nie pasuje."
+        exit 0
+    fi
+    
+    local response=$(curl -s -X DELETE "$BACKEND_URL/api/repos/$REPO_NAME")
+    if echo "$response" | grep -q "error"; then
+        log_error "Błąd: $(echo "$response" | jq -r '.error')"
+    else
+        log_success "Repozytorium $REPO_NAME zostało usunięte."
+    fi
+}
+
+cmd_diff() {
+    local target="$1"
+    
+    if [ -z "$target" ]; then
+         local info=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/latest")
+         target=$(echo "$info" | jq -r '.file')
+         if [ "$target" == "null" ]; then
+            log_error "Brak snapshotów do porównania."
+            exit 1
+         fi
+    fi
+
+    log_info "Pobieranie diff dla: $target (vs poprzedni)"
+    local json=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/diff/$target")
+    
+    if echo "$json" | grep -q "error"; then
+        log_error "Błąd diff: $(echo "$json" | jq -r '.error')"
         exit 1
     fi
     
-    # Posprzątaj
-    rm -rf "$TEMP_DIR"
+    echo -e "\n${CYAN}--- Zmiany w $target ---${NC}"
+    echo "$json" | jq -r '.added[]' | while read line; do echo -e "${GREEN}[+] $line${NC}"; done
+    echo "$json" | jq -r '.removed[]' | while read line; do echo -e "${RED}[-] $line${NC}"; done
+    echo "$json" | jq -r '.modified[]' | while read line; do echo -e "${YELLOW}[~] $line${NC}"; done
     
-else
-    # Dla innych komend - normalne wykonanie
-    if ! sshpass -p "$SSH_PASS" ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$SSH_PORT"         "${SSH_USER}@${SSH_HOST}" "cd '${REMOTE_DIR}' && REPO_NAME='${REPO_NAME}' ${REMOTE_NODE_PATH} '${REMOTE_CLI}' ${ARGS}"; then
-        log_error "Błąd podczas wykonywania komendy na Synology!"
+    local stats=$(echo "$json" | jq -r '.stats')
+    echo -e "\n${MAGENTA}Statystyki:${NC} $(echo $stats | jq -r '"+\(.added)  -\(.removed)  ~\(.modified)"')"
+}
+
+cmd_cat() {
+    local snapshot="$1"
+    local filepath="$2"
+    
+    if [ -z "$snapshot" ] || [ -z "$filepath" ]; then
+        log_error "Użycie: mygit cat <snapshot_zip> <ścieżka/do/pliku>"
         exit 1
     fi
-fi
+    
+    local encoded_path=$(jq -nr --arg v "$filepath" '$v|@uri')
+    curl -s "$BACKEND_URL/api/repos/$REPO_NAME/file/$snapshot/$encoded_path"
+}
 
-EXIT_CODE=$?
+cmd_config() {
+    local key="$1"
+    local value="$2"
+    
+    if [ -z "$key" ]; then
+        echo -e "${CYAN}Obecna konfiguracja ($CONFIG_FILE):${NC}"
+        cat "$CONFIG_FILE" | jq .
+        return
+    fi
+    
+    if [ -z "$value" ]; then
+        jq -r ".$key" "$CONFIG_FILE"
+    else
+        local tmp=$(mktemp)
+        jq --arg v "$value" ".$key = \$v" "$CONFIG_FILE" > "$tmp" && mv "$tmp" "$CONFIG_FILE"
+        log_success "Ustawiono $key = $value"
+    fi
+}
 
-# Obsługa kodów wyjścia
-if [ $EXIT_CODE -eq 0 ]; then
-    log_success "Komenda zakończona sukcesem"
-else
-    log_error "Komenda zakończona z kodem błędu: $EXIT_CODE"
-fi
+cmd_search() {
+    local term="$1"
+    if [ -z "$term" ]; then log_error "Podaj szukaną frazę"; exit 1; fi
+    
+    log_info "Szukanie '$term' w historii $REPO_NAME..."
+    
+    # Używamy tej samej ładnej funkcji co w LOG
+    curl -s "$BACKEND_URL/api/repos/$REPO_NAME/history" | \
+    jq -r --arg term "$term" '.[] | select(.message | test($term; "i")) | "\(.file)|\(.date)|\(.message)|\(.size)"' | \
+    while IFS='|' read -r file date msg size; do
+        print_commit_entry "$file" "$date" "$msg" "$size"
+    done
+    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+}
 
-exit $EXIT_CODE
+
+# --- MAIN ---
+
+check_deps
+load_config
+
+COMMAND="$1"
+shift
+
+case "$COMMAND" in
+    init)        cmd_init "$*" ;;
+    save|push)   cmd_save "$*" ;;
+    get|pull)    cmd_get "$@" ;;
+    list|repos)  cmd_list ;;
+    status)      cmd_status ;;
+    log|history) cmd_log ;;
+    comment)     cmd_comment "$*" ;;
+    delete)      cmd_delete "$1" ;;
+    delete-repo) cmd_delete_repo ;;
+    diff)        cmd_diff "$1" ;;
+    cat)         cmd_cat "$1" "$2" ;;
+    config)      cmd_config "$1" "$2" ;;
+    search)      cmd_search "$1" ;;
+    
+    *)
+        echo -e "${MAGENTA}🧠 mygit v2.2 (Pretty UI)${NC}"
+        echo "Użycie: mygit <komenda>"
+        echo "------------------------------------------------"
+        echo "  init [opis]        - Utwórz repozytorium"
+        echo "  save [msg]         - Wyślij snapshot"
+        echo "  get [repo]         - Pobierz snapshot"
+        echo "  status             - Status obecnego repo"
+        echo "  log                - Historia zmian"
+        echo "------------------------------------------------"
+        echo -e "${CYAN}  diff [snap]        - Pokaż zmiany w snapshocie${NC}"
+        echo -e "${CYAN}  cat <snap> <plik>  - Pokaż zawartość pliku z historii${NC}"
+        echo -e "${CYAN}  search \"fraza\"     - Szukaj w opisach${NC}"
+        echo -e "${CYAN}  config [key val]   - Zarządzaj ustawieniami${NC}"
+        echo "------------------------------------------------"
+        echo -e "${RED}  delete <file>      - Usuń jeden snapshot${NC}"
+        echo -e "${RED}  delete-repo        - Usuń CAŁE repozytorium${NC}"
+        exit 1
+        ;;
+esac

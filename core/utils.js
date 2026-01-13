@@ -1,24 +1,48 @@
 import fs from "fs-extra";
 import path from "path";
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Ścieżka do głównego katalogu projektu mygit
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+const CONFIG_PATH = path.resolve(PROJECT_ROOT, "config.json");
 
-// Wczytaj config z bezwzględną ścieżką
-const require = createRequire(import.meta.url);
-const rawConfig = require("../config.json");
-
-// Rozwiąż wszystkie ścieżki względem katalogu projektu
-export const config = {
-  ...rawConfig,
-  dataDir: path.resolve(PROJECT_ROOT, rawConfig.dataDir),
-  staticWeb: path.resolve(PROJECT_ROOT, rawConfig.staticWeb)
+const DEFAULT_CONFIG = {
+  port: 3350,
+  dataDir: "./data",
+  staticWeb: "./web",
+  maxZipSizeMB: 1024
 };
+
+// Funkcja pomocnicza do synchronizacji configu
+function loadOrCreateConfig() {
+  let raw;
+  if (!fs.existsSync(CONFIG_PATH)) {
+    console.log("📄 Nie znaleziono config.json. Tworzę domyślny...");
+    fs.writeJsonSync(CONFIG_PATH, DEFAULT_CONFIG, { spaces: 2 });
+    raw = DEFAULT_CONFIG;
+  } else {
+    try {
+      raw = fs.readJsonSync(CONFIG_PATH);
+    } catch (e) {
+      console.error("❌ Błąd czytania config.json, używam domyślnych.");
+      raw = DEFAULT_CONFIG;
+    }
+  }
+
+  // Rozwiąż ścieżki względem PROJECT_ROOT, aby zawsze były bezwzględne
+  return {
+    ...DEFAULT_CONFIG,
+    ...raw,
+    dataDir: path.resolve(PROJECT_ROOT, raw.dataDir || DEFAULT_CONFIG.dataDir),
+    staticWeb: path.resolve(PROJECT_ROOT, raw.staticWeb || DEFAULT_CONFIG.staticWeb)
+  };
+}
+
+// Eksport stałej konfiguracji
+export const config = loadOrCreateConfig();
 
 export async function ensureDataDir() {
   await fs.ensureDir(config.dataDir);

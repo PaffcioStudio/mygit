@@ -32,9 +32,10 @@ mygit to lekki, szybki i niezależny system snapshotów dla projektów, który n
 - **Podgląd plików z kolorową składnią** - ponad 50 języków programowania, pliki `.env`, `.gitignore`, `.sh`, `.mjs` itp.
 - **Ulubione repozytoria** - oznacz ważne projekty gwiazdkami dla szybkiego dostępu
 - **Zaawansowane sortowanie** - sortuj według nazwy, daty, rozmiaru, tylko ulubione lub puste
+- **Podgląd plików** - możesz zobaczyć zawartość plików tekstowych z użyciem Monaco i kolorową składnią a także podejrzeć obrazki, filmy czy nawet audio
 - **Statystyki** - monitoruj zużycie przestrzeni dyskowej
 - **Plik .mygitignore** - wykluczaj niepotrzebne pliki (jak node_modules) automatycznie
-- **Działa w sieci lokalnej i zdalnie** - Synology, Linux, Docker
+- **Działa w sieci lokalnej i zdalnie** - Synology DSM i Linux (Ubuntu, Debian i inne)
 - **Lekki i szybki** - zero zależności, minimalna konfiguracja
 
 ---
@@ -65,12 +66,12 @@ cd mygit
 
 ## 2. Nadaj uprawnienia instalatorowi
 ```
-chmod +x ./_install_linux.sh
+chmod +x ./install.sh
 ```
 
 ## 3. Instalacja systemowa
 ```
-sudo ./_install_linux.sh
+sudo ./install.sh
 ```
 
 Binarki zostaną zainstalowane w:
@@ -80,7 +81,6 @@ Binarki zostaną zainstalowane w:
 
 Po instalacji dostępne komendy:
 - `mygit`
-- `mygit-local`
 
 ---
 
@@ -110,7 +110,7 @@ node server.mjs
 
 Domyślny adres:
 ```
-http://localhost:5050
+http://localhost:3350
 ```
 
 ---
@@ -120,7 +120,6 @@ http://localhost:5050
 mygit/
 ├── bin/                   # Pliki wykonywalne (CLI)
 │   ├── mygit              # Wrapper SSH dla Synology
-│   └── mygit-local        # Lokalna wersja CLI
 ├── cli/                   # Kod źródłowy CLI (Commander.js)
 │   └── index.js
 ├── core/                  # Główna logika aplikacji
@@ -134,8 +133,8 @@ mygit/
 │   ├── repos/             # Repozytoria i snapshoty
 │   └── favourites.json    # Ulubione repozytoria
 ├── screenshots/           # Zrzuty ekranu do README
-├── _install_linux.sh      # Skrypt instalacyjny
-├── _uninstall_linux.sh    # Skrypt dezinstalacyjny
+├── install.sh             # Skrypt instalacyjny
+├── uninstall.sh           # Skrypt dezinstalacyjny
 ├── server.mjs             # Serwer Express.js
 ├── config.json            # Konfiguracja (port, ścieżki)
 └── package.json           # Zależności i skrypty npm
@@ -146,9 +145,8 @@ mygit/
 # 🧹 Odinstalowanie
 ```
 sudo rm /usr/local/bin/mygit
-sudo rm /usr/local/bin/mygit-local
 # lub
-sudo ./_uninstall_linux.sh
+sudo ./uninstall.sh
 ```
 
 ---

@@ -3,891 +3,146 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<link rel="icon" type="image/svg+xml" 
-href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'%3E%3Cpath d='M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v3a2 2 0 0 1-2 2h-3v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1H4a2 2 0 0 1-2-2v-3H1a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2h2z'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'%3E%3Cpath d='M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v3a2 2 0 0 1-2 2h-3v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1H4a2 2 0 0 1-2-2v-3H1a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2h2z'/%3E%3C/svg%3E">
 <title>mygit</title>
 
-<!-- Tailwind CDN -->
 <script src="https://cdn.tailwindcss.com"></script>
-<!-- Highlight.js dla kolorowej składni -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+<script>
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+</script>
 <script>hljs.highlightAll();</script>
+
 <style>
-  /* Podstawowe animacje */
-  .fade-in { animation: fadeIn .2s ease-out both; }
-  .fade-out { animation: fadeOut .2s ease-in both; }
-  .slide-up { animation: slideUp .3s cubic-bezier(0.4, 0, 0.2, 1) both; }
-  .slide-down { animation: slideDown .3s cubic-bezier(0.4, 0, 0.2, 1) both; }
-  .scale-in { animation: scaleIn .25s cubic-bezier(0.4, 0, 0.2, 1) both; }
-  .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-  .bounce { animation: bounce 0.5s; }
-  .spin { animation: spin 1s linear infinite; }
-  .float { animation: float 3s ease-in-out infinite; }
-  .shimmer { animation: shimmer 2s infinite linear; }
-  .wiggle { animation: wiggle 0.5s ease-in-out; }
-  
-  @keyframes fadeIn { 
-    from { opacity: 0; transform: translateY(8px) scale(0.98); } 
-    to { opacity: 1; transform: translateY(0) scale(1); } 
-  }
-  
-  @keyframes fadeOut { 
-    from { opacity: 1; transform: translateY(0); } 
-    to { opacity: 0; transform: translateY(-8px); } 
-  }
-  
-  @keyframes slideUp { 
-    from { opacity: 0; transform: translateY(20px); } 
-    to { opacity: 1; transform: translateY(0); } 
-  }
-  
-  @keyframes slideDown { 
-    from { opacity: 0; transform: translateY(-20px); } 
-    to { opacity: 1; transform: translateY(0); } 
-  }
-  
-  @keyframes scaleIn { 
-    from { opacity: 0; transform: scale(0.9); } 
-    to { opacity: 1; transform: scale(1); } 
-  }
-  
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-  
-  @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-  }
-  
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  
-  @keyframes float {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-10px) rotate(2deg); }
-  }
-  
-  @keyframes shimmer {
-    0% { background-position: -1000px 0; }
-    100% { background-position: 1000px 0; }
-  }
-  
-  @keyframes wiggle {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-3deg); }
-    75% { transform: rotate(3deg); }
-  }
-  
-  @keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-  
-  @keyframes typing {
-    from { width: 0 }
-    to { width: 100% }
-  }
-  
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-  
-  @keyframes ripple {
-    0% { transform: scale(0); opacity: 1; }
-    100% { transform: scale(4); opacity: 0; }
-  }
-
-  /* Style modali */
-  .modal-bg { 
-    background: rgba(15, 23, 42, 0.7); 
-    backdrop-filter: blur(8px);
-    animation: fadeIn .15s ease-out;
-  }
-  
-  /* Naprawa z-index */
-  #browseOverlay { z-index: 9000 !important; }
-  #overlay { z-index: 10000 !important; }
-  
-  /* Efekty hover */
-  .file-row { 
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .file-row::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.05), transparent);
-    transition: left 0.6s;
-  }
-  
-  .file-row:hover::before {
-    left: 100%;
-  }
-  
-  .file-row:hover { 
-    background-color: rgba(99, 102, 241, 0.06);
-    transform: translateX(4px);
-    box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.1);
-  }
-  
-  .clickable { 
-    cursor: pointer; 
-    transition: all 0.2s ease;
-  }
-  
-  .clickable:hover {
-    transform: scale(1.02);
-  }
-  
-  .ellipsis { 
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
-  }
-  
-  /* Breadcrumbs */
-  .breadcrumbs-container {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 10px 14px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    margin-bottom: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  }
-  
-  .breadcrumb-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #6366f1;
-    font-size: 13px;
-    font-weight: 500;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-  }
-  
-  .breadcrumb-item:not(:last-child):after {
-    content: "›";
-    color: #94a3b8;
-    margin-left: 6px;
-    font-weight: bold;
-  }
-  
-  .breadcrumb-item:hover {
-    background-color: rgba(99, 102, 241, 0.1);
-    text-decoration: none;
-  }
-  
-  .breadcrumb-root {
-    font-weight: 700;
-  }
-
-  /* Gradient backgrounds */
-  .gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    background-size: 200% 200%;
-    animation: gradientShift 6s ease infinite;
-  }
-  
-  .gradient-bg-alt {
-    background: linear-gradient(135deg, #667eea 0%, #60a5fa 100%);
-  }
-  
-  /* Cards */
-  .card-hover {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .card-hover::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.4s ease;
-  }
-  
-  .card-hover:hover::after {
-    transform: scaleX(1);
-  }
-  
-  .card-hover:hover {
-    transform: translateY(-6px) scale(1.01);
-    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12), 0 10px 20px -5px rgba(0, 0, 0, 0.08);
-    border-color: #c7d2fe;
-  }
-
-  /* Search animation */
-  .search-container {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 2px solid transparent;
-    background: linear-gradient(white, white) padding-box,
-                linear-gradient(135deg, #6366f1, #8b5cf6) border-box;
-  }
-
-  .search-container:focus-within {
-    transform: translateY(-2px) scale(1.01);
-    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.3);
-  }
-
-  /* Styl dla gwiazdek ulubionych */
-  .favourite-star {
-    color: #fbbf24;
-    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    filter: drop-shadow(0 2px 4px rgba(251, 191, 36, 0.3));
-  }
-  
-  .favourite-star:hover {
-    transform: scale(1.3) rotate(15deg);
-  }
-  
-  .favourite-star.empty {
-    color: #d1d5db;
-    filter: none;
-  }
-  
-  .favourite-star.empty:hover {
-    color: #fbbf24;
-    filter: drop-shadow(0 2px 4px rgba(251, 191, 36, 0.3));
-  }
-
-  /* Styl dla dropdown sortowania */
-  .sort-dropdown {
-    position: relative;
-  }
-  
-  .sort-dropdown-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 2px 10px rgba(0, 0, 0, 0.05);
-    min-width: 220px;
-    z-index: 1000;
-    overflow: hidden;
-    animation: slideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
-  }
-  
-  .sort-dropdown-item {
-    padding: 12px 16px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #374151;
-    font-size: 14px;
-    border-left: 3px solid transparent;
-  }
-  
-  .sort-dropdown-item:hover {
-    background-color: #f8fafc;
-    border-left-color: #6366f1;
-    padding-left: 20px;
-  }
-  
-  .sort-dropdown-item.active {
-    background-color: #f1f5fe;
-    color: #4f46e5;
-    font-weight: 600;
-    border-left-color: #4f46e5;
-  }
-
-  /* Animacja przycisku Skopiowano */
-  .copy-success {
-    background: linear-gradient(135deg, #10b981, #059669) !important;
-    border-color: #10b981 !important;
-    animation: bounce 0.5s ease;
-  }
-  
-  @keyframes copySuccess {
-    0% { 
-      transform: scale(1); 
-      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-    }
-    70% { 
-      transform: scale(1.05); 
-      box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
-    }
-    100% { 
-      transform: scale(1); 
-      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-    }
-  }
-
-  /* Przyciski z efektami */
-  .btn-3d {
-    position: relative;
-    transition: all 0.2s ease;
-    transform: translateY(0);
-    box-shadow: 0 4px 0 rgba(79, 70, 229, 0.2);
-  }
-  
-  .btn-3d:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 0 rgba(79, 70, 229, 0.2);
-  }
-  
-  .btn-3d:active {
-    transform: translateY(1px);
-    box-shadow: 0 2px 0 rgba(79, 70, 229, 0.2);
-  }
-  
-  /* Loading states */
-  .loading-shimmer {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-  }
-  
-  /* Progress indicators */
-  .progress-bar {
-    position: relative;
-    overflow: hidden;
-    border-radius: 9999px;
-  }
-  
-  .progress-bar::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    animation: shimmer 2s infinite;
-  }
-  
-  /* Text effects */
-  .text-gradient {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  
-  /* Tooltip animations */
-  .tooltip {
-    opacity: 0;
-    transform: translateY(10px) scale(0.95);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  .tooltip.show {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  
-  /* Ripple effect */
-  .ripple {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.6);
-    transform: scale(0);
-    animation: ripple 0.6s linear;
-  }
-  
-  /* Card stacking effect */
-  .card-stack {
-    position: relative;
-  }
-  
-  .card-stack::before,
-  .card-stack::after {
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border-radius: inherit;
-    background: inherit;
-    box-shadow: inherit;
-    z-index: -1;
-  }
-  
-  .card-stack::before {
-    transform: translateY(4px) scale(0.98);
-    opacity: 0.6;
-  }
-  
-  .card-stack::after {
-    transform: translateY(8px) scale(0.96);
-    opacity: 0.3;
-  }
-  
-  /* Glass morphism */
-  .glass {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-  
-  /* Typing animation */
-  .typing {
-    overflow: hidden;
-    border-right: 2px solid;
-    white-space: nowrap;
-    animation: typing 3.5s steps(40, end), blink 0.75s step-end infinite;
-  }
-  
-  /* Hover lift effect */
-  .hover-lift {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-  }
-  
-  .hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-  }
-  
-  /* Neon glow */
-  .neon-glow {
-    box-shadow: 0 0 5px #6366f1, 0 0 10px #6366f1, 0 0 15px #6366f1;
-    animation: pulse 2s infinite;
-  }
-  
-  /* Morphing border */
-  .morph-border {
-    position: relative;
-    border: 2px solid transparent;
-    background: linear-gradient(white, white) padding-box,
-                linear-gradient(45deg, #6366f1, #8b5cf6, #ec4899) border-box;
-    animation: gradientShift 3s ease infinite;
-  }
-  
-  /* Flip card */
-  .flip-card {
-    perspective: 1000px;
-  }
-  
-  .flip-card-inner {
-    transition: transform 0.6s;
-    transform-style: preserve-3d;
-  }
-  
-  .flip-card:hover .flip-card-inner {
-    transform: rotateY(180deg);
-  }
-  
-  /* Custom scrollbar */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 10px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    border-radius: 10px;
-    transition: background 0.3s;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
-  }
-  
-  /* Highlight animation */
-  .highlight {
-    position: relative;
-  }
-  
-  .highlight::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #6366f1, transparent);
-    transform: scaleX(0);
-    transition: transform 0.3s ease;
-  }
-  
-  .highlight:hover::after {
-    transform: scaleX(1);
-  }
-  
-  /* Colorful syntax for code preview */
-  .hljs-keyword { color: #ec4899; }
-  .hljs-string { color: #10b981; }
-  .hljs-number { color: #f59e0b; }
-  .hljs-function { color: #3b82f6; }
-  .hljs-comment { color: #6b7280; font-style: italic; }
-  .hljs-attr { color: #8b5cf6; }
-  .hljs-title { color: #6366f1; }
-  .hljs-tag { color: #ef4444; }
-  .hljs-params { color: #f97316; }
-  
-  /* Custom syntax highlighting for different file types */
-  .lang-javascript .hljs-built_in { color: #8b5cf6; }
-  .lang-typescript .hljs-built_in { color: #3b82f6; }
-  .lang-python .hljs-built_in { color: #10b981; }
-  .lang-bash .hljs-built_in { color: #f59e0b; }
-  .lang-json .hljs-attr { color: #6366f1; }
-  .lang-yaml .hljs-attr { color: #8b5cf6; }
-  .lang-html .hljs-tag { color: #ef4444; }
-  .lang-css .hljs-attribute { color: #3b82f6; }
-  .lang-markdown .hljs-section { color: #6366f1; font-weight: bold; }
-  
-  /* Pulse attention */
-  .attention-pulse {
-    animation: pulse 2s ease-in-out infinite;
-  }
-  
-  /* Rotating gradient border */
-  .rotating-border {
-    position: relative;
-    border-radius: 12px;
-    overflow: hidden;
-  }
-  
-  .rotating-border::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    background: linear-gradient(45deg, #6366f1, #8b5cf6, #ec4899, #f59e0b, #6366f1);
-    background-size: 400% 400%;
-    animation: gradientShift 3s ease infinite;
-    border-radius: 14px;
-    z-index: -1;
-  }
-  
-  /* Staggered animation for lists */
-  .stagger-item {
-    opacity: 0;
-    transform: translateY(10px);
-    animation: slideUp 0.3s ease forwards;
-  }
-  
-  .stagger-item:nth-child(1) { animation-delay: 0.05s; }
-  .stagger-item:nth-child(2) { animation-delay: 0.1s; }
-  .stagger-item:nth-child(3) { animation-delay: 0.15s; }
-  .stagger-item:nth-child(4) { animation-delay: 0.2s; }
-  .stagger-item:nth-child(5) { animation-delay: 0.25s; }
-  .stagger-item:nth-child(6) { animation-delay: 0.3s; }
-  .stagger-item:nth-child(7) { animation-delay: 0.35s; }
-  .stagger-item:nth-child(8) { animation-delay: 0.4s; }
-  .stagger-item:nth-child(9) { animation-delay: 0.45s; }
-  .stagger-item:nth-child(10) { animation-delay: 0.5s; }
-  
-  /* Background particle effect */
-  .particles {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 0;
-  }
-  
-  .particle {
-    position: absolute;
-    width: 2px;
-    height: 2px;
-    background: #6366f1;
-    border-radius: 50%;
-    animation: float 6s ease-in-out infinite;
-  }
-  
-  /* Terminal cursor effect */
-  .terminal-cursor {
-    display: inline-block;
-    width: 8px;
-    height: 16px;
-    background-color: #6366f1;
-    margin-left: 2px;
-    animation: blink 1s infinite;
-  }
+  body { font-family: 'Inter', sans-serif; }
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.2s ease-out forwards; }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .repo-item.active { background-color: #eff6ff; border-right: 3px solid #6366f1; }
+  .modal-bg { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
 </style>
 </head>
-<body class="bg-gradient-to-br from-slate-50 to-blue-50 text-slate-900 font-sans min-h-screen">
+<body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden">
 
-  <div class="max-w-7xl mx-auto p-6">
-    <header class="mb-8">
-      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
-        <div class="flex items-center gap-4">
-          <div class="bg-indigo-600 p-3 rounded-2xl shadow-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v3a2 2 0 0 1-2 2h-3v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1H4a2 2 0 0 1-2-2v-3H1a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2h2z"/>
-            </svg>
-          </div>
-          <div>
-            <h1 class="text-4xl font-extrabold text-slate-800">mygit</h1>
-            <p class="text-slate-600 mt-1">Lokalny system wersjonowania - prosto i szybko</p>
-          </div>
+  <aside class="w-80 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 z-20 shadow-sm">
+    <div class="p-4 border-b border-slate-100 bg-white z-10">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="bg-indigo-600 p-2 rounded-lg shadow-md shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v3h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v3a2 2 0 0 1-2 2h-3v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1H4a2 2 0 0 1-2-2v-3H1a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h1V7a2 2 0 0 1 2-2h3V4a2 2 0 0 1 2-2h2z"/></svg>
         </div>
-
-        <div class="flex items-center gap-4">
-          <div class="search-container bg-white rounded-xl shadow-sm border p-2 flex-1 max-w-md">
-            <div class="flex items-center gap-2 px-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input 
-                type="text" 
-                id="searchInput" 
-                placeholder="Szukaj repozytoriów..." 
-                class="flex-1 bg-transparent outline-none text-slate-700 placeholder-slate-400"
-              >
-            </div>
-          </div>
-        </div>
+        <h1 class="text-xl font-bold tracking-tight text-slate-800">mygit</h1>
       </div>
-
-      <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border p-4">
-        <div id="serverInfo" class="text-sm text-slate-600 text-center">
-          Ładowanie informacji o serwerze...
+      <div class="space-y-3">
+        <div class="relative">
+          <input type="text" id="searchInput" placeholder="Szukaj..." class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
         </div>
+        <select id="sortSelect" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 text-xs text-slate-600 focus:outline-none focus:border-indigo-500 cursor-pointer">
+          <option value="newest">Najnowsze zmiany</option>
+          <option value="oldest">Najstarsze zmiany</option>
+          <option value="a-z">Nazwa (A-Z)</option>
+          <option value="favourites">Ulubione na górze</option>
+          <option value="size-large">Rozmiar (największe)</option>
+        </select>
+      </div>
+    </div>
+    <div id="repoList" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+      <div class="text-center py-10 text-slate-400 text-sm">Ładowanie...</div>
+    </div>
+    <div class="p-3 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 flex justify-between items-center">
+      <span id="repoCount">0 projektów</span>
+      <div id="serverStatus" class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-300"></span> Offline</div>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50 relative">
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
+      <div id="mainHeaderInfo" class="flex items-center gap-2 opacity-0 transition-opacity duration-300"></div>
+      <div class="flex items-center gap-3">
+        <button onclick="showHelp()" class="text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors" title="Pomoc"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>
+        <button onclick="refresh()" class="text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors" title="Odśwież"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
       </div>
     </header>
 
-    <main class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-      <section class="lg:col-span-3 space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 class="text-2xl font-bold text-slate-800">Twoje repozytoria</h2>
-          
-          <div class="flex items-center gap-3">
-            <div class="text-sm text-slate-500" id="repoCount">
-              <span id="visibleRepos">0</span> z <span id="totalRepos">0</span> repozytoriów
+    <div id="mainContent" class="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10 scroll-smooth bg-slate-50/50">
+      <div id="dashboardView" class="max-w-6xl mx-auto space-y-8 pb-10 fade-in">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div><h2 class="text-2xl font-bold text-slate-800">Dzień dobry! 👋</h2><p class="text-slate-500 text-sm mt-1">Oto podsumowanie Twoich lokalnych repozytoriów.</p></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-md transition-shadow">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg></div>
+              <div><p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Projekty</p><h3 id="dashTotalRepos" class="text-2xl font-bold text-slate-800">-</h3></div>
             </div>
-            
-            <!-- Dropdown sortowania -->
-            <div class="sort-dropdown">
-              <button id="sortToggle" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h5a1 1 0 000-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
-                </svg>
-                Sortuj
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-              </button>
-              
-              <div id="sortDropdown" class="sort-dropdown-menu hidden">
-                <div class="sort-dropdown-item" data-sort="favourites">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                  Tylko ulubione
-                </div>
-                <div class="sort-dropdown-item" data-sort="newest">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-                  </svg>
-                  Najnowsze
-                </div>
-                <div class="sort-dropdown-item" data-sort="oldest">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-                  </svg>
-                  Najstarsze
-                </div>
-                <div class="sort-dropdown-item" data-sort="a-z">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                  </svg>
-                  A → Z
-                </div>
-                <div class="sort-dropdown-item" data-sort="z-a">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                  </svg>
-                  Z → A
-                </div>
-                <div class="sort-dropdown-item" data-sort="size-large">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd" />
-                  </svg>
-                  Rozmiar ▼
-                </div>
-                <div class="sort-dropdown-item" data-sort="size-small">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M12 13a1 1 0 100 2h5a1 1 0 001-1V9a1 1 0 10-2 0v2.586l-4.293-4.293a1 1 0 00-1.414 0L8 9.586l-4.293-4.293a1 1 0 00-1.414 1.414l5 5a1 1 0 001.414 0L11 9.414 14.586 13H12z" clip-rule="evenodd" />
-                  </svg>
-                  Rozmiar ▲
-                </div>
-                <div class="sort-dropdown-item" data-sort="empty">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z" clip-rule="evenodd" />
-                  </svg>
-                  Tylko puste
-                </div>
-              </div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-md transition-shadow">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg></div>
+              <div><p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Łączny rozmiar</p><h3 id="dashTotalSize" class="text-2xl font-bold text-slate-800">-</h3></div>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-md transition-shadow">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+              <div><p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Snapshoty</p><h3 id="dashTotalSnaps" class="text-2xl font-bold text-slate-800">-</h3></div>
             </div>
           </div>
         </div>
-        
-        <div id="reposContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- repo cards will be injected here -->
+        <div id="dashFavSection" class="hidden">
+          <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg> Ulubione projekty</h3>
+          <div id="dashFavGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
-
-        <div id="noResults" class="hidden text-center py-12">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-slate-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3 class="text-lg font-medium text-slate-600 mb-2">Nie znaleziono repozytoriów</h3>
-          <p class="text-slate-500">Spróbuj zmienić zapytanie wyszukiwania lub wybierz inny filtr sortowania</p>
-        </div>
-      </section>
-
-      <aside class="space-y-6">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border card-hover">
-          <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-            </svg>
-            Szybkie akcje
-          </h3>
-          <div class="text-sm text-slate-600 mb-4">
-            Użyj terminala: <code class="bg-slate-100 px-1 rounded">mygit init</code>, <code class="bg-slate-100 px-1 rounded">mygit save "opis"</code>
-          </div>
-          <div class="space-y-3">
-            <button onclick="showHelp()" class="w-full bg-indigo-50 border border-indigo-100 text-indigo-700 px-4 py-3 rounded-xl hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-              </svg>
-              Pomoc
-            </button>
-            <button onclick="refresh()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-3 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-sm flex items-center justify-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
-              </svg>
-              Odśwież
-            </button>
-          </div>
-        </div>
-        
-        <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-5 rounded-2xl shadow-lg text-white">
-          <h3 class="font-semibold mb-2 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-            </svg>
-            Statystyki
-          </h3>
-          <div class="text-sm opacity-90 space-y-1">
-            <div id="statsRepos">Repozytoriów: 0</div>
-            <div id="statsSnapshots">Snapshotów: 0</div>
-            <div id="statsSize">Rozmiar danych: 0 MB</div>
-            <div id="statsFavourites">Ulubionych: 0</div>
-          </div>
-        </div>
-      </aside>
-    </main>
-  </div>
-
-  <!-- Commit list modal & browse modal -->
-  <div id="overlay" class="fixed inset-0 hidden items-center justify-center modal-bg z-40">
-    <div id="panel" class="bg-white rounded-2xl shadow-2xl w-[92%] max-w-4xl p-5 fade-in">
-      <div class="flex justify-between items-center mb-3">
         <div>
-          <h3 id="panelTitle" class="font-semibold text-lg">Panel</h3>
-          <p id="panelSub" class="text-xs text-slate-500"></p>
-        </div>
-        <div class="flex items-center gap-2">
-          <button id="panelClose" class="text-slate-500 hover:text-slate-800 p-1 rounded-full hover:bg-slate-100">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </button>
+          <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Ostatnio aktywne</h3>
+          <div id="dashRecentGrid" class="space-y-2"><div class="text-center py-6 text-slate-400 text-sm bg-white rounded-xl border border-slate-100">Brak aktywnych projektów</div></div>
         </div>
       </div>
+      <div id="repoDetail" class="hidden max-w-5xl mx-auto pb-20"></div>
+    </div>
+  </main>
 
-      <div id="panelBody" class="max-h-[60vh] overflow-auto">
-        <!-- dynamic -->
+  <div id="overlay" class="fixed inset-0 hidden items-center justify-center modal-bg z-[60] p-4">
+    <div id="panel" class="bg-white rounded-2xl shadow-2xl w-[90%] max-w-lg flex flex-col max-h-[90vh] fade-in border border-slate-100 overflow-hidden">
+      <div class="p-6 pb-0 shrink-0">
+        <div class="flex justify-between items-center mb-4">
+          <div><h3 id="panelTitle" class="font-bold text-lg text-slate-800">Tytuł</h3><p id="panelSub" class="text-xs text-slate-500 mt-1">Podtytuł</p></div>
+          <button onclick="closeOverlay()" class="text-slate-400 hover:text-slate-700 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+        </div>
       </div>
-
-      <div class="mt-4 text-right flex gap-2 justify-end">
-        <button id="copyButton" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-            <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-          </svg>
-          Skopiuj
-        </button>
-        <button id="panelClose2" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors">Zamknij</button>
+      <div id="panelBody" class="flex-1 overflow-y-auto custom-scrollbar px-6"></div>
+      <div class="p-6 pt-4 border-t border-slate-100 shrink-0 flex justify-end gap-3 bg-slate-50/50">
+        <button id="copyButton" class="hidden text-indigo-600 text-sm font-medium hover:underline mr-auto">Skopiuj tekst</button>
+        <button id="panelClose2" hidden onclick="closeOverlay()" class="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium">Zamknij</button>
       </div>
     </div>
   </div>
 
-  <!-- Browse snapshot modal (drzewo) -->
   <div id="browseOverlay" class="fixed inset-0 hidden items-center justify-center modal-bg z-50">
-    <div class="bg-white rounded-2xl shadow-2xl w-[94%] max-w-5xl p-5 fade-in">
-      <div class="flex justify-between items-start gap-4 mb-3">
-        <div>
-          <h3 id="browseTitle" class="font-semibold text-lg">Zawartość snapshotu</h3>
-          <p id="browseSub" class="text-xs text-slate-500">Przeglądaj zawartość snapshotu</p>
-        </div>
-        <div class="flex gap-2">
-          <button id="browseClose" class="text-slate-500 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </button>
-        </div>
+    <div class="bg-white rounded-2xl shadow-2xl w-[94%] max-w-6xl h-[85vh] flex flex-col fade-in border border-slate-200 overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <div><h3 id="browseTitle" class="font-bold text-lg text-slate-800">Przeglądarka plików</h3><p id="browseSub" class="text-xs text-slate-500">Eksploruj zawartość snapshota</p></div>
+        <button id="browseClose" class="text-slate-400 hover:text-slate-700 bg-white p-2 rounded-full shadow-sm hover:shadow transition-all"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
       </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="col-span-2">
-          <div id="pathBreadcrumbs" class="breadcrumbs-container"></div>
-          <div id="browseList" class="bg-slate-50 rounded-lg border p-2 max-h-[60vh] overflow-auto">
-            <!-- file entries -->
-          </div>
+      <div class="flex-1 flex overflow-hidden">
+        <div class="flex-1 flex flex-col min-w-0 border-r border-slate-100 bg-white">
+          <div id="pathBreadcrumbs" class="p-3 border-b border-slate-100 text-sm flex flex-wrap gap-2 items-center bg-slate-50"></div>
+          <div id="browseList" class="flex-1 overflow-y-auto custom-scrollbar p-2"></div>
         </div>
-
-        <aside class="bg-white border rounded-lg p-3">
-          <div id="filePreview" class="text-sm text-slate-700">
-            <div class="text-slate-500 text-xs mb-2">Szczegóły pliku</div>
-            <div id="fpName" class="font-medium ellipsis"></div>
-            <div id="fpType" class="text-xs text-slate-500 mt-1"></div>
-            <div id="fpSize" class="text-xs text-slate-500 mt-1"></div>
-            <div class="mt-3 space-y-2">
-              <a id="downloadFile" class="block text-indigo-600 text-sm hover:underline flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-                Pobierz plik
-              </a>
-              <button id="openFileBtn" class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                </svg>
-                Otwórz / Pokaż
-              </button>
+        <aside class="w-80 bg-slate-50 p-6 flex flex-col shadow-[inset_4px_0_10px_-4px_rgba(0,0,0,0.02)]">
+          <div id="filePreview" class="text-center mt-10">
+            <div class="bg-white w-16 h-16 rounded-2xl shadow-sm mx-auto flex items-center justify-center mb-4 text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>
+            <h4 id="fpName" class="font-medium text-slate-800 break-words mb-1">Wybierz plik</h4>
+            <div id="fpType" class="text-xs text-slate-500 mb-6">Szczegóły pliku pojawią się tutaj</div>
+            <div id="fpActions" class="space-y-3 opacity-50 pointer-events-none transition-opacity">
+               <button id="openFileBtn" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl hover:bg-indigo-700 shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 font-medium text-sm"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> Podgląd</button>
+               <a id="downloadFile" href="#" class="w-full bg-white border border-slate-200 text-slate-700 py-2.5 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2 font-medium text-sm"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> Pobierz</a>
             </div>
           </div>
         </aside>
@@ -896,1286 +151,524 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   </div>
 
 <script>
-/* ------------------------
-   Utils
-   ------------------------ */
-function el(html){ const tmp = document.createElement('div'); tmp.innerHTML = html.trim(); return tmp.firstChild; }
-function fmtDate(d){
-  const dt = new Date(d);
-  if (isNaN(dt)) return d;
-  const dd = String(dt.getDate()).padStart(2,'0');
-  const mm = String(dt.getMonth()+1).padStart(2,'0');
-  const yyyy = dt.getFullYear();
-  const hh = String(dt.getHours()).padStart(2,'0');
-  const min = String(dt.getMinutes()).padStart(2,'0');
-  const ss = String(dt.getSeconds()).padStart(2,'0');
-  return `${dd}-${mm}-${yyyy} | ${hh}:${min}:${ss}`;
-}
+// --- LOGIKA APLIKACJI ---
+let repos = []; let filteredRepos = []; let favourites = []; let currentSort = 'newest'; let selectedRepoId = null;
+const dom = { searchInput: document.getElementById('searchInput'), sortSelect: document.getElementById('sortSelect'), repoList: document.getElementById('repoList'), repoCount: document.getElementById('repoCount'), serverStatus: document.getElementById('serverStatus'), dashboardView: document.getElementById('dashboardView'), mainContent: document.getElementById('mainContent'), repoDetail: document.getElementById('repoDetail'), headerInfo: document.getElementById('mainHeaderInfo'), };
 
-// Główna funkcja fetch
-async function fetchJson(path, opts) {
+function el(html){ const tmp = document.createElement('div'); tmp.innerHTML = html.trim(); return tmp.firstChild; }
+function escapeHtml(s){ return String(s || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+function escapeJS(s){ return (s||'').replaceAll("'", "\'").replaceAll('"','\"'); }
+function fmtDate(d){ const dt = new Date(d); if (isNaN(dt)) return 'Nieznana'; return dt.toLocaleDateString('pl-PL') + ' ' + dt.toLocaleTimeString('pl-PL', {hour: '2-digit', minute:'2-digit'}); }
+function humanSize(n){ if(!n) return '0 B'; const sizes=['B','KB','MB','GB']; let i=0; while(n>1024 && i<3){ n/=1024; i++; } return `${n.toFixed(i===0?0:1)} ${sizes[i]}`; }
+
+// ZMUSZAMY PRZEGLĄDARKĘ DO POBRANIA NOWYCH DANYCH (cache: 'no-store')
+async function fetchJson(path, opts = {}) {
   try {
-    console.log(`🔍 Fetch: ${path}`);
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    
     const fullPath = path.startsWith('http') ? path : window.location.origin + path;
     
-    const r = await fetch(fullPath, {
-      ...opts,
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/json',
-        ...opts?.headers
-      }
-    });
-    
-    clearTimeout(timeoutId);
-    
-    console.log(`📄 Response status: ${r.status} ${r.statusText} for ${path}`);
+    // To jest kluczowe: wymuszamy brak cache'owania
+    const newOpts = { ...opts, cache: 'no-store' };
+
+    const r = await fetch(fullPath, newOpts);
+    const contentType = r.headers.get("content-type");
     
     if (!r.ok) {
-      const errorText = await r.text();
-      let errorMessage = `HTTP ${r.status}: ${r.statusText}`;
-      
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.error || errorMessage;
-      } catch {
-        if (errorText) errorMessage = errorText;
-      }
-      
-      throw new Error(errorMessage);
+        const txt = await r.text();
+        let msg = `HTTP ${r.status}`;
+        try { msg = JSON.parse(txt).error || msg; } catch{}
+        throw new Error(msg);
     }
-    
-    const contentType = r.headers.get('content-type') || '';
-    
-    if (contentType.includes('application/json')) {
-      const data = await r.json();
-      console.log(`✅ Fetch success: ${path}`);
-      return data;
-    } else {
-      const text = await r.text();
-      console.warn(`⚠️ Otrzymano nie-JSON odpowiedź dla ${path}`);
-      try {
-        return JSON.parse(text);
-      } catch {
-        throw new Error('Otrzymano nieprawidłowy format odpowiedzi (oczekiwano JSON)');
-      }
+    if (contentType && contentType.indexOf("application/json") === -1) {
+        return {};
     }
+    const txt = await r.text();
+    if (!txt) return {};
+    return JSON.parse(txt);
   } catch (e) {
-    if (e.name === 'TypeError' && e.message.includes('Failed to fetch')) {
-      if (e.message.includes('127.0.0.1:9614') || e.message.includes('localhost:9614')) {
-        console.warn('⚠️ Ignorowany błąd z React DevTools - próba ponowienia żądania...');
-        try {
-          const fullPath = path.startsWith('http') ? path : window.location.origin + path;
-          const r = await fetch(fullPath, {
-            ...opts,
-            headers: {
-              'Accept': 'application/json',
-              ...opts?.headers
-            }
-          });
-          
-          if (r.ok) {
-            return await r.json();
-          }
-        } catch (retryError) {
-          console.error('❌ Błąd również przy ponownej próbie:', retryError);
-        }
-      }
+    console.error(`Fetch Error ${path}:`, e);
+    if (e.name === 'TypeError' && e.message.includes('NetworkError')) {
+       if (path.includes('/diff/')) {
+           return { added: [], removed: [], modified: [], prev: null, current: "Błąd sieci (Antywirus?)", stats: { added: 0, removed: 0, modified: 0, totalChanges: 0 }, info: "Nie udało się pobrać różnic. Sprawdź konsolę." };
+       }
+       return {};
     }
-    
-    if (e.name === 'AbortError') {
-      throw new Error('Żądanie przekroczyło limit czasu (15s)');
-    }
-    
-    console.error(`❌ Fetch error: ${path}`, e);
     throw e;
   }
 }
 
-/* ------------------------
-   App state
-   ------------------------ */
-let repos = [];
-let filteredRepos = [];
-let favourites = [];
-let currentSort = 'newest';
-const reposContainer = document.getElementById('reposContainer');
-const searchInput = document.getElementById('searchInput');
-const noResults = document.getElementById('noResults');
-const repoCount = document.getElementById('repoCount');
-const visibleRepos = document.getElementById('visibleRepos');
-const totalRepos = document.getElementById('totalRepos');
-const serverInfo = document.getElementById('serverInfo');
-const statsRepos = document.getElementById('statsRepos');
-const statsSnapshots = document.getElementById('statsSnapshots');
-const statsSize = document.getElementById('statsSize');
-const statsFavourites = document.getElementById('statsFavourites');
-
-// Elementy sortowania
-const sortToggle = document.getElementById('sortToggle');
-const sortDropdown = document.getElementById('sortDropdown');
-
-// Obsługa dropdown sortowania
-sortToggle.addEventListener('click', (e) => {
-  e.stopPropagation();
-  sortDropdown.classList.toggle('hidden');
-});
-
-// Zamknij dropdown po kliknięciu gdzieś indziej
-document.addEventListener('click', () => {
-  sortDropdown.classList.add('hidden');
-});
-
-// Zapobieganie zamknięciu dropdown po kliknięciu w jego zawartość
-sortDropdown.addEventListener('click', (e) => {
-  e.stopPropagation();
-});
-
-// Obsługa wyboru sortowania
-sortDropdown.querySelectorAll('.sort-dropdown-item').forEach(item => {
-  item.addEventListener('click', () => {
-    const sortType = item.dataset.sort;
-    setActiveSort(sortType);
-    sortRepos();
-    sortDropdown.classList.add('hidden');
+// Inicjalizacja
+window.addEventListener('load', () => {
+  refresh();
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey && e.key === 'k') || (e.key === '/' && document.activeElement !== dom.searchInput)) { e.preventDefault(); dom.searchInput.focus(); }
+    if (e.key === 'Escape') {
+        if(!document.getElementById('overlay').classList.contains('hidden')) closeOverlay();
+        else if (!document.getElementById('browseOverlay').classList.contains('hidden')) document.getElementById('browseClose').click();
+        else if (selectedRepoId) deselectRepo();
+    }
   });
+  dom.searchInput.addEventListener('input', (e) => filterAndSort(e.target.value));
+  dom.sortSelect.addEventListener('change', (e) => { currentSort = e.target.value; filterAndSort(dom.searchInput.value); });
 });
 
-function setActiveSort(sortType) {
-  currentSort = sortType;
-  
-  // Aktualizuj tekst przycisku
-  const sortLabels = {
-    'favourites': 'Tylko ulubione',
-    'newest': 'Najnowsze',
-    'oldest': 'Najstarsze',
-    'a-z': 'A → Z',
-    'z-a': 'Z → A',
-    'size-large': 'Rozmiar ▼',
-    'size-small': 'Rozmiar ▲',
-    'empty': 'Tylko puste'
-  };
-  
-  sortToggle.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-      <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h5a1 1 0 000-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 8a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 13.586V8z" />
-    </svg>
-    ${sortLabels[sortType]}
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
-      <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-    </svg>
-  `;
-  
-  // Usuń aktywną klasę ze wszystkich elementów
-  sortDropdown.querySelectorAll('.sort-dropdown-item').forEach(el => {
-    el.classList.remove('active');
-  });
-  
-  // Dodaj aktywną klasę do wybranego elementu
-  item = sortDropdown.querySelector(`[data-sort="${sortType}"]`);
-  if (item) item.classList.add('active');
-}
-
-// Funkcja sortowania repozytoriów
-function sortRepos() {
-  let sorted = [...filteredRepos];
-  
-  switch(currentSort) {
-    case 'favourites':
-      sorted = sorted.filter(repo => repo.isFavourite);
-      break;
-      
-    case 'newest':
-      sorted.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-      break;
-      
-    case 'oldest':
-      sorted.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
-      break;
-      
-    case 'a-z':
-      sorted.sort((a, b) => a.name.localeCompare(b.name));
-      break;
-      
-    case 'z-a':
-      sorted.sort((a, b) => b.name.localeCompare(a.name));
-      break;
-      
-    case 'size-large':
-      sorted.sort((a, b) => (b.totalSize || 0) - (a.totalSize || 0));
-      break;
-      
-    case 'size-small':
-      sorted.sort((a, b) => (a.totalSize || 0) - (b.totalSize || 0));
-      break;
-      
-    case 'empty':
-      sorted = sorted.filter(repo => (repo.commitCount || 0) === 0);
-      break;
-  }
-  
-  // Ulubione zawsze na górze (poza sortem "favourites")
-  if (currentSort !== 'favourites') {
-    sorted.sort((a, b) => {
-      if (a.isFavourite && !b.isFavourite) return -1;
-      if (!a.isFavourite && b.isFavourite) return 1;
-      return 0;
-    });
-  }
-  
-  filteredRepos = sorted;
-  renderRepos();
-  updateRepoCount();
-}
-
-// Wyszukiwarka
-searchInput.addEventListener('input', (e) => {
-  filterRepos(e.target.value);
-});
-
-function filterRepos(query) {
-  if (!query.trim()) {
-    filteredRepos = [...repos];
-  } else {
-    const lowerQuery = query.toLowerCase();
-    filteredRepos = repos.filter(repo => 
-      repo.name.toLowerCase().includes(lowerQuery) ||
-      (repo.description && repo.description.toLowerCase().includes(lowerQuery)) ||
-      repo.id.toLowerCase().includes(lowerQuery)
-    );
-  }
-  
-  sortRepos();
-  updateRepoCount();
-}
-
-function updateRepoCount() {
-  visibleRepos.textContent = filteredRepos.length;
-  totalRepos.textContent = repos.length;
-  
-  if (filteredRepos.length === 0 && repos.length > 0) {
-    noResults.classList.remove('hidden');
-  } else {
-    noResults.classList.add('hidden');
-  }
-}
-
-function updateStats() {
-  const totalSnapshots = repos.reduce((sum, repo) => sum + (repo.commitCount || 0), 0);
-  const totalSize = repos.reduce((sum, repo) => sum + (repo.totalSize || 0), 0);
-  const totalSizeMB = (totalSize / 1024 / 1024).toFixed(1);
-  const favouriteCount = repos.filter(repo => repo.isFavourite).length;
-  
-  statsRepos.textContent = `Repozytoriów: ${repos.length}`;
-  statsSnapshots.textContent = `Snapshotów: ${totalSnapshots}`;
-  statsSize.textContent = `Rozmiar danych: ${totalSizeMB} MB`;
-  statsFavourites.textContent = `Ulubionych: ${favouriteCount}`;
-}
-
-/* ------------------------
-   Load & render repos
-   ------------------------ */
 async function refresh(){
-  reposContainer.innerHTML = '<div class="p-6 bg-white rounded-xl shadow text-slate-500 text-center">Ładowanie repozytoriów...</div>';
-  noResults.classList.add('hidden');
-  
+  dom.repoList.innerHTML = '<div class="text-center py-10 text-slate-400 text-xs">Aktualizuję...</div>';
+  dom.serverStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span> Łączenie...';
   try {
+    // Te zapytania teraz pójdą prosto do serwera (bez cache)
     const data = await fetchJson('/api/repos');
-    repos = data;
+    const favData = await fetchJson('/api/favourites').catch(() => ({favourites:[]}));
     
-    // Pobierz ulubione
-    const favData = await fetchJson('/api/favourites');
+    repos = data; 
     favourites = favData.favourites || [];
+    repos.forEach(r => { r.isFavourite = favourites.includes(r.id); });
     
-    // Ustaw flagę isFavourite na podstawie favourites
-    repos.forEach(repo => {
-      repo.isFavourite = favourites.includes(repo.id);
-    });
+    // Tutaj dodano AWAIT - czekamy aż pobierze rozmiary i liczby commitów dla każdego repo
+    await fetchDetailsForRepos(); 
     
-    // Pobierz dodatkowe statystyki dla każdego repo
-    for (let repo of repos) {
-      try {
-        const info = await fetchJson(`/api/repos/${repo.id}/info`);
-        repo.commitCount = info.commitCount;
-        repo.totalSize = info.totalSize;
-        repo.updatedAt = info.updatedAt || repo.updatedAt;
-      } catch (e) {
-        console.warn(`Nie udało się pobrać info dla ${repo.id}:`, e.message);
-      }
+    filteredRepos = [...repos]; 
+    filterAndSort(''); // To odświeży listę po lewej
+    renderDashboard(); // To odświeży kafelki
+    
+    dom.serverStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500"></span> Online';
+    
+    if(selectedRepoId) { 
+        const stillExists = repos.find(r => r.id === selectedRepoId); 
+        if(stillExists) selectRepo(selectedRepoId); 
+        else deselectRepo(); 
     }
-    
-    filteredRepos = [...repos];
-    sortRepos();
-    updateRepoCount();
-    updateStats();
-    
-    // Aktualizuj info o serwerze
-    const proto = window.location.protocol;
-    const host = window.location.hostname;
-    const port = window.location.port;
-    serverInfo.innerHTML = `
-      <div class="flex items-center justify-center gap-2">
-        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-        Serwer działa: ${host}${port ? ':' + port : ''}
-      </div>
-    `;
-  } catch(e){
-    reposContainer.innerHTML = `<div class="p-6 bg-red-50 rounded-xl border text-red-700">Błąd: ${e.message}</div>`;
-    serverInfo.innerHTML = `<div class="text-red-600">Błąd połączenia z serwerem</div>`;
+  } catch(e) {
+    dom.repoList.innerHTML = `<div class="text-center py-4 text-red-500 text-xs px-2">Błąd: ${e.message}</div>`;
+    dom.serverStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> Błąd';
   }
 }
 
-function renderRepos(){
-  if(!filteredRepos.length){
-    return;
-  }
-  
-  reposContainer.innerHTML = filteredRepos.map(r => repoCardHtml(r)).join('');
+async function fetchDetailsForRepos() {
+    for (let r of repos) { try { const info = await fetchJson(`/api/repos/${r.id}/info`); r.commitCount = info.commitCount; r.totalSize = info.totalSize; if(info.updatedAt) r.updatedAt = info.updatedAt; updateListItem(r); if(selectedRepoId === r.id) updateHeaderStats(r); renderDashboard(); } catch(e){} }
 }
 
-function repoCardHtml(r){
-  const commitCount = r.commitCount || 0;
-  const sizeMB = r.totalSize ? (r.totalSize / 1024 / 1024).toFixed(1) : '0';
-  const lastUpdate = r.updatedAt ? fmtDate(r.updatedAt) : 'Nieznana';
-  const isFavourite = r.isFavourite || false;
-  
-  return `
-  <div class="bg-white p-5 rounded-2xl shadow-sm border card-hover ${isFavourite ? 'border-yellow-200 bg-gradient-to-br from-white to-yellow-50' : ''}">
-    <div class="flex justify-between items-start mb-3">
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 mb-1">
-          <h2 class="text-xl font-semibold text-slate-800 truncate">${escapeHtml(r.name)}</h2>
-          <button class="favourite-btn favourite-star ${isFavourite ? 'favourite-star' : 'favourite-star empty'}" data-repo-id="${r.id}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="${isFavourite ? 'currentColor' : 'none'}" stroke="currentColor">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-          </button>
-        </div>
-        <div class="text-sm text-slate-600 mt-1 line-clamp-2">${escapeHtml(r.description || 'Brak opisu')}</div>
-      </div>
-      <div class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full ml-2 flex-shrink-0">${escapeHtml(r.id)}</div>
-    </div>
-
-    <div class="flex items-center justify-between text-xs text-slate-500 mb-4">
-      <div class="flex items-center gap-4">
-        <span class="flex items-center gap-1">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-          </svg>
-          ${lastUpdate.split(' | ')[0]}
-        </span>
-        <span class="flex items-center gap-1">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm-1 4a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd" />
-          </svg>
-          ${commitCount} snapshotów
-        </span>
-      </div>
-      <span class="flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" clip-rule="evenodd" />
-        </svg>
-        ${sizeMB} MB
-      </span>
-    </div>
-
-    <div class="flex gap-2">
-      <button class="btn-history px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1 flex-1 justify-center">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-        </svg>
-        Historia
-      </button>
-      <button class="btn-browse px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1 flex-1 justify-center">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z" clip-rule="evenodd" />
-          <path d="M6 12a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2H2h2a2 2 0 002-2v-2z" />
-        </svg>
-        Przeglądaj
-      </button>
-      <button class="btn-delete px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-        </svg>
-      </button>
-    </div>
-
-    <div class="mt-4 hidden repo-history p-3 rounded-lg bg-slate-50 border"></div>
-  </div>
-  `;
-}
-
-function escapeHtml(s){ return String(s || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
-
-/* ------------------------
-   Delegated clicks (history, browse, delete, favourite)
-   ------------------------ */
-reposContainer.addEventListener('click', async (e) => {
-  const card = e.target.closest('.card-hover');
-  if (!card) return;
-  const name = card.querySelector('h2')?.textContent;
-  if (!name) return;
-
-  if (e.target.closest('.btn-history')) {
-    await toggleHistory(card, name);
-  } else if (e.target.closest('.btn-browse')) {
-    openBrowse(name);
-  } else if (e.target.closest('.btn-delete')) {
-    confirmDeleteRepo(name);
-  } else if (e.target.closest('.favourite-btn')) {
-    const repoId = e.target.closest('.favourite-btn').dataset.repoId;
-    await toggleFavourite(repoId, card);
-  } else if (e.target.closest('.repo-history a.download-link')){
-    // handled by link default
-  }
-});
-
-// Obsługa ulubionych
-async function toggleFavourite(repoId, card) {
-  try {
-    const starBtn = card.querySelector('.favourite-btn');
-    const isFavourite = starBtn.classList.contains('favourite-star') && !starBtn.classList.contains('empty');
-    
-    if (isFavourite) {
-      // Usuń z ulubionych
-      await fetch(`/api/favourites/${repoId}`, { method: 'DELETE' });
-      starBtn.classList.add('empty');
-      starBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor">
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-      `;
-    } else {
-      // Dodaj do ulubionych
-      await fetch(`/api/favourites/${repoId}`, { method: 'POST' });
-      starBtn.classList.remove('empty');
-      starBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-      `;
+function filterAndSort(query){
+    const q = query.toLowerCase().trim();
+    let res = repos.filter(r => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q));
+    switch(currentSort){
+        case 'favourites': res = res.filter(r => r.isFavourite).concat(res.filter(r => !r.isFavourite)); break; 
+        case 'newest': res.sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt)); break;
+        case 'oldest': res.sort((a,b) => new Date(a.updatedAt) - new Date(b.updatedAt)); break;
+        case 'a-z': res.sort((a,b) => a.name.localeCompare(b.name)); break;
+        case 'size-large': res.sort((a,b) => (b.totalSize||0) - (a.totalSize||0)); break;
     }
-    
-    // Zaktualizuj statystyki
-    const repo = repos.find(r => r.id === repoId);
-    if (repo) {
-      repo.isFavourite = !isFavourite;
-    }
-    
-    updateStats();
-    sortRepos();
-    
-  } catch (error) {
-    console.error('Błąd zmiany ulubionych:', error);
-  }
+    if (currentSort !== 'favourites') res.sort((a, b) => (b.isFavourite === a.isFavourite) ? 0 : b.isFavourite ? 1 : -1);
+    filteredRepos = res; renderList();
 }
 
-/* ------------------------
-   Toggle history
-   ------------------------ */
-async function toggleHistory(card, repoId){
-  const hist = card.querySelector('.repo-history');
-  if (!hist) return;
-  if (!hist.classList.contains('hidden')) {
-    hist.classList.add('hidden'); return;
-  }
-  hist.innerHTML = '<div class="text-sm text-slate-500">Ładowanie historii...</div>';
-  hist.classList.remove('hidden');
-  try {
-    const commits = await fetchJson(`/api/repos/${repoId}/history`);
-    if (!commits.length) {
-      hist.innerHTML = '<div class="text-sm text-slate-600">Brak snapshotów.</div>';
-      return;
-    }
-    hist.innerHTML = commits.map(c => commitRowHtml(repoId, c)).join('');
-  } catch(err){
-    hist.innerHTML = `<div class="text-sm text-red-600">Błąd: ${err.message}</div>`;
-  }
-}
-
-function commitRowHtml(repoId, c){
-  const d = fmtDate(c.date);
-  return `
-  <div class="flex items-center justify-between py-2 border-b last:border-b-0">
-    <div class="flex-1 min-w-0">
-      <div class="font-medium text-slate-800 truncate">${escapeHtml(c.message || c.file)}</div>
-      <div class="text-xs text-slate-400">${escapeHtml(d)}</div>
-    </div>
-    <div class="text-sm flex items-center gap-2 ml-2">
-      <a class="download-link text-indigo-600 hover:underline flex items-center gap-1" href="/api/repos/${repoId}/download/${encodeURIComponent(c.file)}">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-        </svg>
-        Pobierz
-      </a>
-      <button onclick="previewDiff('${repoId}','${encodeURIComponent(c.file)}')" class="text-slate-700 hover:text-slate-900 flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-          <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-        </svg>
-        Podgląd
-      </button>
-      <button onclick="confirmDeleteSnap('${repoId}','${encodeURIComponent(c.file)}')" class="text-red-600 hover:text-red-800 flex items-center gap-1">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-        </svg>
-        Usuń
-      </button>
-    </div>
-  </div>
-  `;
-}
-
-/* ------------------------
-   Preview diff modal
-   ------------------------ */
-async function previewDiff(repoId, fileEnc) {
-  const file = decodeURIComponent(fileEnc);
-  showOverlay('Podgląd zmian', `Snapshot: ${file}`, async (body) => {
-    body.innerHTML = `
-      <div class="flex items-center justify-center py-8">
-        <div class="text-center">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <div class="text-sm text-slate-500">Ładuję różnice...</div>
-          <div class="text-xs text-slate-400 mt-2">To może chwilę potrwać</div>
-        </div>
-      </div>
-    `;
-    
-    try {
-      console.log(`🔍 Żądanie diff: ${repoId}, ${file}`);
-      
-      const diff = await fetchJson(`/api/repos/${repoId}/diff/${encodeURIComponent(file)}`);
-      
-      console.log('✅ Otrzymano diff:', diff);
-      
-      if (!diff || typeof diff !== 'object') {
-        throw new Error('Otrzymano nieprawidłowe dane diff');
-      }
-      
-      body.innerHTML = renderDiff(diff);
-      
-    } catch (e) {
-      console.error('❌ Błąd previewDiff:', e);
-      
-      if (e.message.includes('XHR') || e.message.includes('Network')) {
-        body.innerHTML = `
-          <div class="text-sm text-orange-600 bg-orange-50 p-6 rounded-lg">
-            <div class="font-semibold mb-3">🛠️ Problem z połączeniem</div>
-            <div class="mb-4">Wypróbuj następujące rozwiązania:</div>
-            <ul class="text-xs list-disc list-inside space-y-2 mb-4">
-              <li><strong>Wyłącz React DevTools</strong> - to najczęstsza przyczyna</li>
-              <li>Użyj trybu incognito/private</li>
-              <li>Tymczasowo wyłącz inne rozszerzenia developerowe</li>
-              <li>Odśwież stronę po wyłączeniu rozszerzeń</li>
-            </ul>
-            <div class="flex gap-2 flex-wrap justify-center">
-              <button onclick="retryDiff('${repoId}', '${fileEnc}')" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700 transition-colors">
-                🔄 Spróbuj ponownie
-              </button>
-              <button onclick="closeOverlay()" class="bg-slate-100 px-4 py-2 rounded-md text-sm hover:bg-slate-200 transition-colors">
-                ❌ Anuluj
-              </button>
-              <button onclick="window.location.reload()" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors">
-                🔁 Odśwież stronę
-              </button>
+function renderList(){
+    dom.repoCount.innerText = `${filteredRepos.length} projektów`;
+    if(filteredRepos.length === 0){ dom.repoList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">Brak wyników</div>'; return; }
+    dom.repoList.innerHTML = filteredRepos.map(r => `
+        <div onclick="selectRepo('${r.id}')" id="repo-item-${r.id}" class="repo-item group flex flex-col p-3 rounded-lg cursor-pointer transition-all hover:bg-slate-50 border border-transparent hover:border-slate-200 mb-1 ${selectedRepoId === r.id ? 'active' : ''}">
+            <div class="flex justify-between items-start mb-1">
+                <div class="font-semibold text-sm text-slate-800 truncate pr-2" title="${escapeHtml(r.name)}">${r.isFavourite ? '<span class="text-yellow-400 mr-1">★</span>' : ''}${escapeHtml(r.name)}</div>
+                ${r.commitCount !== undefined ? `<span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 shrink-0">${r.commitCount} snap</span>` : ''}
             </div>
-          </div>
-        `;
-      } else {
-        body.innerHTML = `
-          <div class="text-sm text-red-600 bg-red-50 p-6 rounded-lg">
-            <div class="font-semibold mb-2">❌ Błąd podczas ładowania różnic:</div>
-            <div class="mb-4">${escapeHtml(e.message)}</div>
-            <div class="flex gap-2 justify-center">
-              <button onclick="retryDiff('${repoId}', '${fileEnc}')" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700 transition-colors">
-                🔄 Spróbuj ponownie
-              </button>
-              <button onclick="closeOverlay()" class="bg-slate-100 px-4 py-2 rounded-md text-sm hover:bg-slate-200 transition-colors">
-                ❌ Zamknij
-              </button>
+            <div class="flex justify-between items-end">
+                <div class="text-xs text-slate-500 truncate max-w-[70%] opacity-80">${escapeHtml(r.description || 'Brak opisu')}</div>
+                <div class="text-[10px] text-slate-400">${r.totalSize !== undefined ? humanSize(r.totalSize) : ''}</div>
             </div>
-          </div>
-        `;
-      }
-    }
-  });
-}
-
-function retryDiff(repoId, fileEnc) {
-  previewDiff(repoId, fileEnc);
-}
-
-function renderDiff(diff){
-  try {
-    if (diff.info) {
-      return `
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div class="font-semibold text-blue-800">${diff.info}</div>
-          <div class="text-sm text-blue-600 mt-2">
-            Ten snapshot zawiera wszystkie pliki jako nowe, ponieważ nie ma poprzedniej wersji do porównania.
-          </div>
         </div>
-      `;
-    }
-
-    if (!diff.added || !diff.removed || !diff.modified) {
-      throw new Error('Brak wymaganych pól w danych diff');
-    }
-
-    const parts = [
-      {title:'Dodane', cls:'text-green-600 bg-green-50', arr: Array.isArray(diff.added) ? diff.added : []},
-      {title:'Usunięte', cls:'text-red-600 bg-red-50', arr: Array.isArray(diff.removed) ? diff.removed : []},
-      {title:'Zmodyfikowane', cls:'text-yellow-600 bg-yellow-50', arr: Array.isArray(diff.modified) ? diff.modified : []}
-    ];
-    
-    let html = `
-      <div class="mb-4 text-sm text-slate-500">
-        Porównanie: <strong>${escapeHtml(diff.prev || 'Brak poprzedniego')}</strong> → <strong>${escapeHtml(diff.current || 'Nieznany')}</strong>
-      </div>
-    `;
-    
-    html += parts.map(p => `
-      <div class="mb-4 border rounded-lg overflow-hidden">
-        <div class="font-semibold ${p.cls.split(' ')[0]} px-4 py-2 ${p.cls.split(' ')[1]}">
-          ${p.title} (${p.arr.length})
-        </div>
-        ${p.arr.length ? `
-          <div class="max-h-40 overflow-y-auto">
-            <ul class="text-xs py-2 list-disc list-inside">
-              ${p.arr.map(x => `<li class="px-4 py-1 hover:bg-slate-50">${escapeHtml(x)}</li>`).join('')}
-            </ul>
-          </div>
-        ` : `
-          <div class="text-xs text-slate-400 px-4 py-3">Brak zmian</div>
-        `}
-      </div>
     `).join('');
-    
-    if (diff.stats) {
-      html += `
-        <div class="mt-4 p-3 bg-slate-50 rounded-lg border">
-          <div class="text-sm font-semibold text-slate-700">Podsumowanie:</div>
-          <div class="text-xs text-slate-600 mt-1">
-            Dodano: ${diff.stats.added || 0}, Usunięto: ${diff.stats.removed || 0}, Zmodyfikowano: ${diff.stats.modified || 0}
-            (Razem: ${(diff.stats.totalChanges || 0)} zmian)
-          </div>
+}
+function updateListItem(r){ const el = document.getElementById(`repo-item-${r.id}`); if(el && r.commitCount !== undefined) renderList(); }
+async function selectRepo(id){
+    selectedRepoId = id; renderList();
+    const repo = repos.find(r => r.id === id); if(!repo) return;
+    dom.dashboardView.classList.add('hidden'); dom.repoDetail.classList.remove('hidden'); dom.headerInfo.style.opacity = '1';
+    renderHeader(repo);
+    dom.repoDetail.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6 mt-6 fade-in">
+            <div class="p-6 border-b border-slate-100">
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">${escapeHtml(repo.name)}</h2>
+                <p class="text-slate-600 leading-relaxed">${escapeHtml(repo.description || 'Brak opisu tego projektu.')}</p>
+                <div class="flex flex-wrap gap-4 mt-4 text-sm text-slate-500">
+                    <div onclick="copyToClipboard(this, '${repo.id}')" class="group flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition-all select-none" title="Kliknij, aby skopiować ID">
+                        <div class="icon-container text-slate-400 group-hover:text-indigo-500 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg></div>
+                        <div class="text-container flex gap-1"><span class="text-slate-500 group-hover:text-indigo-600 transition-colors">ID:</span><span class="font-mono text-xs group-hover:text-indigo-700 font-medium transition-colors">${repo.id}</span></div>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>${repo.updatedAt ? fmtDate(repo.updatedAt) : 'Brak daty'}</div>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-6 py-3 flex gap-3">
+                 <button onclick="openBrowse('${repo.id}')" class="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 hover:text-indigo-600 hover:border-indigo-300 px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg> Przeglądaj pliki</button>
+                <div class="flex-1"></div>
+                 <button onclick="confirmDeleteRepo('${repo.id}')" class="flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Usuń projekt</button>
+            </div>
         </div>
-      `;
-    }
-    
-    return html;
-  } catch (e) {
-    console.error('Błąd w renderDiff:', e);
-    return `
-      <div class="text-red-600 bg-red-50 p-4 rounded-lg">
-        <div class="font-semibold">Błąd podczas renderowania różnic:</div>
-        <div class="mt-2">${escapeHtml(e.message)}</div>
-        <pre class="mt-2 text-xs bg-red-100 p-2 rounded overflow-auto">${escapeHtml(JSON.stringify(diff, null, 2))}</pre>
-      </div>
+        <div class="mb-4 flex items-center justify-between"><h3 class="text-lg font-bold text-slate-800">Historia snapshotów</h3></div>
+        <div id="historyContainer" class="space-y-3"><div class="text-center py-8 text-slate-400">Ładowanie historii...</div></div>
     `;
-  }
-}
-
-/* ------------------------
-   Confirm modal for repo / snapshot delete
-   ------------------------ */
-function showOverlay(title, sub, onBodyReady){
-  const overlay = document.getElementById('overlay');
-  const panelTitle = document.getElementById('panelTitle');
-  const panelSub = document.getElementById('panelSub');
-  const panelBody = document.getElementById('panelBody');
-  const copyButton = document.getElementById('copyButton');
-  
-  panelTitle.textContent = title;
-  panelSub.textContent = sub || '';
-  panelBody.innerHTML = '<div class="text-sm text-slate-500">Ładuję...</div>';
-  
-  // Ukryj przycisk kopiowania domyślnie
-  copyButton.classList.add('hidden');
-  
-  overlay.classList.remove('hidden'); 
-  overlay.classList.add('flex');
-  
-  document.getElementById('panelClose').onclick = () => closeOverlay();
-  document.getElementById('panelClose2').onclick = () => closeOverlay();
-  
-  onBodyReady(panelBody);
-}
-
-function closeOverlay(){ 
-  document.getElementById('overlay').classList.add('hidden'); 
-  document.getElementById('overlay').classList.remove('flex'); 
-}
-
-// Funkcja do kopiowania tekstu do schowka
-function setupCopyButton(content) {
-  const copyButton = document.getElementById('copyButton');
-  copyButton.classList.remove('hidden');
-  
-  copyButton.onclick = async () => {
     try {
-      // Spróbuj użyć nowego API clipboard
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(content);
-      } else {
-        // Fallback dla starszych przeglądarek
-        const textArea = document.createElement('textarea');
-        textArea.value = content;
-        textArea.style.position = 'fixed';
-        textArea.style.top = '-9999px';
-        textArea.style.left = '-9999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
+        const history = await fetchJson(`/api/repos/${repo.id}/history`);
+        const container = document.getElementById('historyContainer');
+        if(!history.length) { container.innerHTML = `<div class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500"><p>Brak snapshotów w tym repozytorium.</p><p class="text-xs mt-2">Użyj <code class="bg-slate-100 px-1 rounded">mygit save</code> w terminalu aby dodać pierwszy.</p></div>`; return; }
+        container.innerHTML = history.map(c => renderCommitRow(repo.id, c)).join('');
+    } catch(e) { document.getElementById('historyContainer').innerHTML = `<div class="text-red-500 text-sm">Nie udało się pobrać historii: ${e.message}</div>`; }
+}
+function renderHeader(repo) {
+    dom.headerInfo.innerHTML = `<div class="font-bold text-lg text-slate-800 truncate max-w-[200px] lg:max-w-md">${escapeHtml(repo.name)}</div><button onclick="toggleFavourite('${repo.id}')" class="text-slate-400 hover:text-yellow-400 transition-colors p-1" title="Ulubione"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ${repo.isFavourite ? 'text-yellow-400 fill-current' : ''}" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg></button>`;
+}
+function updateHeaderStats(repo){}
+function deselectRepo(){ selectedRepoId = null; dom.dashboardView.classList.remove('hidden'); dom.repoDetail.classList.add('hidden'); dom.headerInfo.style.opacity = '0'; renderList(); }
+function renderCommitRow(repoId, c) {
+  const d = fmtDate(c.date); const message = escapeHtml(c.message || c.file); const fileEnc = encodeURIComponent(c.file);
+  return `
+  <div class="group bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex items-start justify-between gap-4">
+    <div class="min-w-0 flex-1"><div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-indigo-500"></span><h4 class="font-medium text-slate-800 truncate cursor-help" title="${message}">${message}</h4></div><div class="text-xs text-slate-400 flex gap-3"><span>${d}</span><span class="font-mono bg-slate-50 px-1 rounded text-slate-500 border border-slate-100">${escapeHtml(c.file)}</span></div></div>
+    <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onclick="previewDiff('${repoId}','${fileEnc}')" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg text-xs font-medium flex items-center gap-1" title="Podgląd zmian"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></button>
+        <a href="/api/repos/${repoId}/download/${fileEnc}" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg text-xs font-medium flex items-center gap-1" title="Pobierz ZIP"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg></a>
+        <button onclick="confirmDeleteSnap('${repoId}','${fileEnc}')" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors" title="Usuń snapshot"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+    </div>
+  </div>`;
+}
+async function toggleFavourite(id){ try { const repo = repos.find(r => r.id === id); if(!repo) return; const method = repo.isFavourite ? 'DELETE' : 'POST'; await fetch(`/api/favourites/${id}`, { method }); repo.isFavourite = !repo.isFavourite; renderList(); if(selectedRepoId === id) renderHeader(repo); } catch(e) { console.error(e); } }
+function confirmDeleteRepo(id){ showOverlay('Usuń projekt', `Czy na pewno usunąć ${id}? Operacja jest nieodwracalna.`, (body) => { body.innerHTML = `<div class="bg-red-50 text-red-700 p-4 rounded-lg text-sm mb-4">Uwaga: Wszystkie snapshoty i metadane zostaną trwale usunięte.</div><div class="flex justify-end gap-2"><button onclick="closeOverlay()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50">Anuluj</button><button id="doDelete" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium shadow-sm">Tak, usuń</button></div>`; document.getElementById('doDelete').onclick = async () => { try { await fetch(`/api/repos/${id}`, { method: 'DELETE' }); closeOverlay(); refresh(); } catch(e){ alert(e.message); } } }); }
+function confirmDeleteSnap(repoId, fileEnc){ 
+    const file = decodeURIComponent(fileEnc); 
+    showOverlay('Usuwanie snapshota', 'Potwierdzenie operacji krytycznej', (body) => { 
+        body.innerHTML = `<div class="flex flex-col items-center text-center pt-2"><div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4 text-red-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></div><h4 class="text-lg font-bold text-slate-800 mb-2">Czy na pewno usunąć ten snapshot?</h4><p class="text-slate-500 text-sm mb-6 break-all">Plik: <span class="font-mono font-medium text-slate-700 bg-slate-100 px-1 rounded">${escapeHtml(file)}</span></p><div class="flex gap-3 w-full"><button onclick="closeOverlay()" class="flex-1 bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl hover:bg-slate-50 font-medium transition-colors text-sm">Anuluj</button><button id="doDeleteSnap" class="flex-1 bg-red-600 text-white px-4 py-2.5 rounded-xl hover:bg-red-700 font-medium shadow-sm shadow-red-200 transition-colors text-sm">Usuń snapshot</button></div></div>`; 
         
-        const successful = document.execCommand('copy');
-        if (!successful) {
-          throw new Error('Nie udało się skopiować');
-        }
-        
-        document.body.removeChild(textArea);
-      }
-      
-      // Animacja sukcesu
-      const originalText = copyButton.innerHTML;
-      copyButton.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-        </svg>
-        Skopiowano!
-      `;
-      copyButton.classList.add('copy-success');
-      
-      setTimeout(() => {
-        copyButton.innerHTML = originalText;
-        copyButton.classList.remove('copy-success');
-      }, 2000);
-    } catch (err) {
-      console.error('Błąd kopiowania do schowka:', err);
-      // Pokazujemy prosty alert jeśli nie udało się skopiować
-      alert('Nie udało się skopiować do schowka. Skopiuj ręcznie: Ctrl+C');
-    }
-  };
+        document.getElementById('doDeleteSnap').onclick = async () => { 
+            try { 
+                await fetch(`/api/repos/${repoId}/commit/${encodeURIComponent(file)}`, { method: 'DELETE' }); 
+                closeOverlay(); 
+                await refresh(); 
+                // Odświeżamy widok szczegółów repozytorium
+                selectRepo(repoId); 
+            } catch(e){ 
+                alert(e.message); 
+                closeOverlay(); 
+            } 
+        } 
+    }); 
 }
-
-/* ------------------------
-   Confirm delete repo
-   ------------------------ */
-function confirmDeleteRepo(repoId){
-  showOverlay('Usuń repozytorium', `Usunięcie repozytorium ${repoId}`, (body) => {
-    body.innerHTML = `
-      <div class="text-sm p-6 text-center">
-        <div class="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.974-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-        </div>
-        <h3 class="text-lg font-semibold text-slate-800 mb-2">Usunąć repozytorium?</h3>
-        <p class="text-slate-600 mb-4">Czy na pewno chcesz usunąć repozytorium <strong class="font-semibold">${escapeHtml(repoId)}</strong>?</p>
-        <p class="text-xs text-slate-500 mb-6">Operacja usunie wszystkie wersje snapshotów i metadane. Tej akcji nie można cofnąć.</p>
-        <div class="flex gap-3 justify-center">
-          <button id="delYes" class="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg transition-colors flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-            </svg>
-            Tak, usuń
-          </button>
-          <button id="delNo" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-2.5 rounded-lg transition-colors">
-            Anuluj
-          </button>
-        </div>
-      </div>
-    `;
-    body.querySelector('#delNo').onclick = closeOverlay;
-    body.querySelector('#delYes').onclick = async () => {
-      try {
-        await fetch(`/api/repos/${repoId}`, { method: 'DELETE' });
-        closeOverlay(); 
-        refresh();
-      } catch (e){ 
-        body.innerHTML = `<div class="text-sm text-red-600 p-4">Błąd: ${e.message}</div>`; 
-      }
-    };
-  });
-}
-
-/* ------------------------
-   Confirm delete snapshot
-   ------------------------ */
-function confirmDeleteSnap(repoId, fileEnc){
-  const file = decodeURIComponent(fileEnc);
-  showOverlay('Usuń snapshot', `Usuń snapshot ${file}`, (body) => {
-    body.innerHTML = `
-      <div class="text-sm">Usuń snapshot <strong>${escapeHtml(file)}</strong> z repozytorium <strong>${escapeHtml(repoId)}</strong>?</div>
-      <div class="mt-4 flex gap-2">
-        <button id="delYes" class="bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 transition-colors">Usuń</button>
-        <button id="delNo" class="bg-slate-100 px-3 py-2 rounded-md hover:bg-slate-200 transition-colors">Anuluj</button>
-      </div>
-    `;
-    body.querySelector('#delNo').onclick = closeOverlay;
-    body.querySelector('#delYes').onclick = async () => {
-      try {
-        await fetch(`/api/repos/${repoId}/commit/${encodeURIComponent(file)}`, { method: 'DELETE' });
-        closeOverlay(); refresh();
-      } catch (e){ body.innerHTML = `<div class="text-sm text-red-600">Błąd: ${e.message}</div>`; }
-    };
-  });
-}
-
-/* ------------------------
-   Browse snapshot modal (tree)
-   ------------------------ */
-async function openBrowse(repoId){
+// --- NAPRAWIONA FUNKCJA DIFF ---
+async function previewDiff(repoId, fileEnc) {
+  showOverlay('Podgląd zmian', 'Ładowanie...', (body) => body.innerHTML = '<div class="text-center py-10">Ładowanie...</div>');
   try {
-    showBrowseOverlay(repoId, '');
-    await loadBrowse(repoId, '');
-  } catch (e){
-    alert('Błąd: ' + e.message);
-  }
+      // WAŻNA ZMIANA: Usuwamy .zip z nazwy pliku w URL, aby przeglądarka/AV nie myślały, że to download
+      // Backend i tak poradzi sobie ze znalezieniem pliku (ma logikę dodawania .zip jeśli brakuje)
+      const safeFile = decodeURIComponent(fileEnc).replace(/\.zip$/i, '');
+      const encodedSafeFile = encodeURIComponent(safeFile);
+      
+      const diff = await fetchJson(`/api/repos/${repoId}/diff/${encodedSafeFile}`);
+      const body = document.getElementById('panelBody');
+      
+      if(diff.info) { body.innerHTML = `<div class="bg-blue-50 text-blue-700 p-4 rounded-lg">${diff.info}</div>`; return; }
+      const renderSection = (title, items, colorClass) => { if(!items || !items.length) return ''; return `<div class="mb-4"><h4 class="font-bold text-sm mb-2 ${colorClass}">${title} (${items.length})</h4><div class="bg-slate-50 rounded border border-slate-200 p-2 max-h-40 overflow-y-auto custom-scrollbar text-xs font-mono">${items.map(i => `<div class="py-0.5 border-b border-slate-100 last:border-0">${escapeHtml(i)}</div>`).join('')}</div></div>`; };
+      body.innerHTML = `<div class="text-sm"><div class="mb-4 text-slate-500">Porównanie: <b>${escapeHtml(diff.prev||'-')}</b> -> <b>${escapeHtml(diff.current)}</b></div>${renderSection('Dodane', diff.added, 'text-green-600')}${renderSection('Usunięte', diff.removed, 'text-red-600')}${renderSection('Zmodyfikowane', diff.modified, 'text-yellow-600')}${(!diff.added?.length && !diff.removed?.length && !diff.modified?.length) ? '<div class="text-center text-slate-400 py-4">Nie ma żadnych zmian w plikach względem poprzedniego. Zalecane jest usunięcie tego snapshota ponieważ jest duplikatem aktualnie już istniejącego.</div>' : ''}</div>`;
+  } catch(e) { document.getElementById('panelBody').innerHTML = `<div class="text-red-500">Błąd: ${e.message}</div>`; }
 }
 
-function showBrowseOverlay(repoId, path){
-  document.getElementById('browseOverlay').classList.remove('hidden');
-  document.getElementById('browseOverlay').classList.add('flex');
-  document.getElementById('browseTitle').textContent = `Zawartość snapshotu - ${repoId}`;
-  document.getElementById('browseClose').onclick = () => { 
-    document.getElementById('browseOverlay').classList.add('hidden'); 
-    document.getElementById('browseOverlay').classList.remove('flex'); 
-  };
+async function openBrowse(repoId){ const overlay = document.getElementById('browseOverlay'); overlay.classList.remove('hidden'); overlay.classList.add('flex'); document.getElementById('fpName').textContent = 'Wybierz plik'; document.getElementById('fpType').textContent = 'Szczegóły'; document.getElementById('fpActions').classList.add('opacity-50', 'pointer-events-none'); await loadBrowse(repoId, ''); }
+document.getElementById('browseClose').onclick = () => { const o = document.getElementById('browseOverlay'); o.classList.add('hidden'); o.classList.remove('flex'); };
+
+function getFileIcon(name, type) {
+    if (type === 'dir') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10z"/></svg>`;
+    }
+
+    const ext = name.split('.').pop().toLowerCase();
+    const cls = "w-5 h-5";
+
+    // Obrazy (Niebieski/Fioletowy)
+    if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'ico', 'bmp'].includes(ext)) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls} text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>`;
+    }
+    // Wideo (Czerwony/Różowy)
+    if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls} text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>`;
+    }
+    // Audio (Bursztynowy)
+    if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls} text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>`;
+    }
+    // Kod/Config (Szary/Niebieski)
+    if (['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'json', 'py', 'java', 'c', 'cpp', 'php', 'xml', 'yml', 'yaml', 'md'].includes(ext)) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls} text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>`;
+    }
+    // PDF (Czerwony)
+    if (ext === 'pdf') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls} text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>`;
+    }
+    // Archiwa (Żółty/Brązowy)
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls} text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>`;
+    }
+
+    // Domyślny plik (Szary)
+    return `<svg xmlns="http://www.w3.org/2000/svg" class="${cls} text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>`;
 }
 
 async function loadBrowse(repoId, path){
-  const listEl = document.getElementById('browseList');
-  const bc = document.getElementById('pathBreadcrumbs');
-  listEl.innerHTML = '<div class="text-sm text-slate-500 p-3">Ładuję...</div>';
-  
-  try {
-    const u = `/api/repos/${repoId}/browse` + (path ? `?path=${encodeURIComponent(path)}` : '');
-    const resp = await fetchJson(u);
-    const files = resp.files || [];
+    const list = document.getElementById('browseList'); 
+    const bc = document.getElementById('pathBreadcrumbs'); 
+    list.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm">Ładowanie...</div>';
     
-    renderBreadcrumbs(repoId, path, bc);
-    
-    if (!files.length) { 
-      listEl.innerHTML = '<div class="text-sm text-slate-500 p-3">Pusty folder</div>'; 
-      return; 
-    }
-    
-    listEl.innerHTML = files.map(f => `
-      <div class="file-row flex items-center justify-between p-2 rounded clickable hover:bg-slate-100 transition-colors" onclick="onBrowseClick('${repoId}','${escapeJS(f.path)}','${f.type}')">
-        <div class="flex items-center gap-3">
-          <div class="w-6 text-slate-500">${f.type==='dir' ? '📁' : '📄'}</div>
-          <div>
-            <div class="text-sm font-medium">${escapeHtml(f.name)}</div>
-            <div class="text-xs text-slate-400">${f.type==='file' ? (f.size ? humanSize(f.size) : '') : 'Katalog'}</div>
-          </div>
-        </div>
-        <div class="text-xs text-slate-500">
-          ${f.type==='file' ? `<a class="text-indigo-600 hover:underline flex items-center gap-1" href="/api/repos/${repoId}/file/${encodeURIComponent(resp.commitFile || '')}/${encodeURIComponent(f.path)}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-            Pobierz
-          </a>` : ''}
-        </div>
-      </div>
-    `).join('');
-  } catch (e){
-    listEl.innerHTML = `<div class="text-sm text-red-600 p-3">Błąd: ${e.message}</div>`;
-  }
-}
-
-// Nowa funkcja do renderowania breadcrumbs
-function renderBreadcrumbs(repoId, currentPath, container) {
-  const parts = currentPath ? currentPath.split('/').filter(Boolean) : [];
-  
-  let breadcrumbsHtml = `
-    <div class="breadcrumb-item clickable breadcrumb-root" onclick="loadBrowse('${repoId}', '')">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-      </svg>
-      Główny
-    </div>
-  `;
-  
-  let accumulatedPath = '';
-  parts.forEach((part, index) => {
-    accumulatedPath += (accumulatedPath ? '/' : '') + part;
-    const isLast = index === parts.length - 1;
-    
-    breadcrumbsHtml += `
-      <div class="breadcrumb-item ${isLast ? 'text-slate-600' : 'clickable'}" 
-           ${!isLast ? `onclick="loadBrowse('${repoId}', '${accumulatedPath}')"` : ''}>
-        ${escapeHtml(part)}
-      </div>
-    `;
-  });
-  
-  container.innerHTML = breadcrumbsHtml;
-}
-
-function escapeJS(s){ return (s||'').replaceAll("'", "\\'").replaceAll('"','\\"'); }
-function humanSize(n){ if(!n) return ''; const sizes=['B','KB','MB','GB']; let i=0; while(n>1024 && i<3){ n/=1024; i++; } return `${n.toFixed( (i===0)?0:1 )} ${sizes[i]}`; }
-
-async function onBrowseClick(repoId, path, type){
-  if (type === 'dir'){
-    await loadBrowse(repoId, path);
-    return;
-  }
-  
-  const browseData = await fetchJson(`/api/repos/${repoId}/browse?path=${encodeURIComponent(path.split('/').slice(0, -1).join('/'))}`);
-  const commitFile = browseData.commitFile;
-  
-  document.getElementById('fpName').textContent = path.split('/').pop();
-  document.getElementById('fpType').textContent = 'Plik';
-  document.getElementById('fpSize').textContent = '';
-  
-  const downloadUrl = `/api/repos/${repoId}/file/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`;
-  const previewUrl = `/api/repos/${repoId}/preview/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`;
-  const checkFileUrl = `/api/repos/${repoId}/checkfile/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`;
-  
-  const dl = document.getElementById('downloadFile');
-  dl.href = downloadUrl;
-  dl.textContent = '⬇ Pobierz plik';
-  
-  document.getElementById('openFileBtn').onclick = async () => { 
     try {
-      // Najpierw sprawdź czy plik jest tekstowy
-      const fileCheck = await fetchJson(checkFileUrl);
-      
-      if (fileCheck.isText || fileCheck.isContentText) {
-        const preview = await fetchJson(previewUrl);
-        showFilePreview(preview.content, path);
-      } else {
-        window.open(downloadUrl, '_blank');
-      }
-    } catch (e) {
-      // Fallback: jeśli nie można sprawdzić, spróbuj podejrzeć
-      try {
-        const preview = await fetchJson(previewUrl);
-        showFilePreview(preview.content, path);
-      } catch (previewError) {
-        window.open(downloadUrl, '_blank');
-      }
+        const cleanPath = (path || "").replace(/\/+/g, '/');
+        const u = `/api/repos/${repoId}/browse` + (cleanPath ? `?path=${encodeURIComponent(cleanPath)}` : '');
+        const data = await fetchJson(u); 
+        const files = data.files || [];
+        
+        // Breadcrumbs
+        const parts = cleanPath ? cleanPath.split('/').filter(Boolean) : [];
+        let htmlBC = `<span class="cursor-pointer hover:text-indigo-600 font-semibold" onclick="loadBrowse('${repoId}','')">root</span>`; 
+        let acc = '';
+        
+        parts.forEach((p, i) => { 
+            acc += (acc ? '/' : '') + p; 
+            const isLast = i === parts.length - 1; 
+            htmlBC += ` <span class="text-slate-300">/</span> <span class="${isLast ? 'text-slate-800 font-bold' : 'cursor-pointer hover:text-indigo-600'}" onclick="${!isLast ? `loadBrowse('${repoId}','${escapeJS(acc)}')` : ''}">${escapeHtml(p)}</span>`; 
+        });
+        bc.innerHTML = htmlBC;
+        
+        if(!files.length) { 
+            list.innerHTML = '<div class="text-center py-10 text-slate-400 text-sm">Folder jest pusty</div>'; 
+            return; 
+        }
+        
+        list.innerHTML = files.map(f => {
+            const isDir = f.type === 'dir'; 
+            // UŻYCIE NOWEJ FUNKCJI IKON
+            const icon = getFileIcon(f.name, f.type);
+            const safePath = f.path.replace(/\/+/g, '/');
+            
+            return `
+                <div onclick="onFileClick('${repoId}', '${escapeJS(safePath)}', '${f.type}', '${data.commitFile}', ${f.size || 0})" class="flex items-center gap-3 p-2 rounded hover:bg-slate-50 cursor-pointer group border-b border-transparent hover:border-slate-100 transition-colors">
+                    ${icon}
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium text-slate-700 group-hover:text-indigo-700 truncate">${escapeHtml(f.name)}</div>
+                    </div>
+                    <div class="text-xs text-slate-400">${isDir ? '' : humanSize(f.size)}</div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch(e){ 
+        list.innerHTML = `<div class="text-red-500 p-4">Błąd: ${e.message}</div>`; 
     }
-  };
 }
 
-// Dodaj funkcję do podglądu plików tekstowych z kolorową składnią
-function showFilePreview(content, filename) {
-  showOverlay('Podgląd pliku', filename, (body) => {
-    const ext = filename.split('.').pop().toLowerCase();
-    const fileName = filename.split('/').pop().toLowerCase();
+async function onFileClick(repoId, path, type, commitFile, size){
+    if(type === 'dir'){ await loadBrowse(repoId, path); return; }
     
-    // Rozszerzone mapowanie rozszerzeń plików na języki Highlight.js
-    const languageMap = {
-      // JavaScript i TypeScript
-      'js': 'javascript',
-      'jsx': 'javascript',
-      'mjs': 'javascript',
-      'cjs': 'javascript',
-      'ts': 'typescript',
-      'tsx': 'typescript',
-      
-      // Web
-      'html': 'html',
-      'htm': 'html',
-      'css': 'css',
-      'scss': 'scss',
-      'sass': 'sass',
-      'less': 'less',
-      
-      // Data & Config
-      'json': 'json',
-      'yml': 'yaml',
-      'yaml': 'yaml',
-      'xml': 'xml',
-      'toml': 'toml',
-      'ini': 'ini',
-      'cfg': 'ini',
-      'conf': 'ini',
-      'properties': 'properties',
-      
-      // Programming languages
-      'py': 'python',
-      'php': 'php',
-      'java': 'java',
-      'c': 'c',
-      'cpp': 'cpp',
-      'cc': 'cpp',
-      'h': 'c',
-      'hpp': 'cpp',
-      'cs': 'csharp',
-      'rb': 'ruby',
-      'go': 'go',
-      'rs': 'rust',
-      'swift': 'swift',
-      'kt': 'kotlin',
-      'scala': 'scala',
-      'pl': 'perl',
-      'lua': 'lua',
-      'groovy': 'groovy',
-      'dart': 'dart',
-      
-      // Shell & Scripts
-      'sh': 'bash',
-      'bash': 'bash',
-      'zsh': 'bash',
-      'fish': 'bash',
-      'ps1': 'powershell',
-      'bat': 'batch',
-      'cmd': 'batch',
-      
-      // Environment & Config files
-      'env': 'bash',
-      'env.example': 'bash',
-      'env.local': 'bash',
-      'env.development': 'bash',
-      'env.production': 'bash',
-      'env.test': 'bash',
-      'gitignore': 'gitignore',
-      'dockerignore': 'gitignore',
-      'editorconfig': 'editorconfig',
-      'prettierrc': 'json',
-      'eslintrc': 'json',
-      'eslintrc.json': 'json',
-      'babelrc': 'json',
-      'babelrc.json': 'json',
-      'npmrc': 'ini',
-      'yarnrc': 'ini',
-      'gitattributes': 'gitattributes',
-      'gitmodules': 'gitmodules',
-      'htaccess': 'apache',
-      'nginx': 'nginx',
-      
-      // Documentation
-      'md': 'markdown',
-      'markdown': 'markdown',
-      'txt': 'plaintext',
-      'rst': 'restructuredtext',
-      'adoc': 'asciidoc',
-      
-      // Database
-      'sql': 'sql',
-      'pgsql': 'sql',
-      'mysql': 'sql',
-      
-      // Templates
-      'ejs': 'ejs',
-      'pug': 'pug',
-      'jade': 'pug',
-      'hbs': 'handlebars',
-      'mustache': 'mustache',
-      
-      // Build & Package managers
-      'gradle': 'groovy',
-      'build': 'groovy',
-      'cmake': 'cmake',
-      'makefile': 'makefile',
-      'dockerfile': 'dockerfile',
-      'docker-compose.yml': 'yaml',
-      'docker-compose.yaml': 'yaml',
-      
-      // Logs
-      'log': 'plaintext',
-      
-      // Other
-      'svg': 'xml',
-      'graphql': 'graphql',
-      'gql': 'graphql',
-      'prisma': 'prisma',
-      'proto': 'protobuf'
-    };
+    const filename = path.split('/').pop();
+    document.getElementById('fpName').textContent = filename;
     
-    // Sprawdź czy to plik ukryty (z kropką na początku)
-    let lang = 'plaintext';
+    // TU JEST ZMIANA: Używamy przekazanego rozmiaru zamiast 0
+    document.getElementById('fpType').textContent = humanSize(size);
     
-    if (fileName.startsWith('.') && fileName.length > 1) {
-      const hiddenFileName = fileName.substring(1);
-      // Sprawdź czy rozpoznajemy ten plik po nazwie bez kropki
-      if (languageMap[hiddenFileName]) {
-        lang = languageMap[hiddenFileName];
-      } else {
-        // Domyślnie dla ukrytych plików używamy 'plaintext' lub 'bash' dla skryptów
-        if (fileName.includes('env') || fileName.includes('sh') || fileName.includes('bash')) {
-          lang = 'bash';
-        } else if (fileName.includes('git')) {
-          lang = 'gitignore';
-        } else {
-          lang = 'plaintext';
+    document.getElementById('fpActions').classList.remove('opacity-50', 'pointer-events-none');
+    
+    const downloadUrl = `/api/repos/${repoId}/file/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`;
+    const previewUrl = `/api/repos/${repoId}/preview/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`;
+    
+    document.getElementById('downloadFile').href = downloadUrl;
+    
+    document.getElementById('openFileBtn').onclick = async () => {
+        const ext = filename.includes('.') ? filename.split('.').pop().toLowerCase() : '';
+        
+        // 1. Multimedia (Modal Media)
+        if(['png','jpg','jpeg','gif','svg','webp','ico','bmp'].includes(ext)) { showMediaModal(downloadUrl, filename, 'image'); return; }
+        if(['mp4','webm','ogg','mov'].includes(ext)) { showMediaModal(downloadUrl, filename, 'video'); return; }
+        if(['mp3','wav','mpeg'].includes(ext)) { showMediaModal(downloadUrl, filename, 'audio'); return; }
+        if(['pdf'].includes(ext)) { showMediaModal(downloadUrl, filename, 'pdf'); return; }
+
+        // 2. Pliki tekstowe - sprawdzamy po rozszerzeniu LUB po nazwie (dotfiles)
+        // To naprawia .mygitignore i inne pliki konfiguracyjne
+        const textExts = ['txt', 'md', 'json', 'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'xml', 'yaml', 'yml', 'ini', 'cfg', 'conf', 'sh', 'bat', 'c', 'cpp', 'h', 'java', 'py', 'rb', 'php', 'go', 'rs', 'sql', 'gitignore', 'mygitignore', 'env'];
+        
+        if (textExts.includes(ext) || filename.startsWith('.')) {
+            try {
+                const prev = await fetchJson(previewUrl);
+                showCodeModal(prev.content, filename);
+                return;
+            } catch(e) {
+                console.warn("Nie udało się pobrać podglądu jako tekst, próbuję binary check...", e);
+            }
         }
-      }
-    } else {
-      // Spróbuj znaleźć język po rozszerzeniu
-      lang = languageMap[ext] || 'plaintext';
-    }
-    
-    // Specjalne przypadki dla plików bez rozszerzenia lub znanych nazw
-    if (!ext && fileName) {
-      if (fileName === 'dockerfile') lang = 'dockerfile';
-      else if (fileName === 'makefile') lang = 'makefile';
-      else if (fileName === 'procfile') lang = 'yaml';
-      else if (fileName === 'docker-compose.yml') lang = 'yaml';
-      else if (fileName === 'docker-compose.yaml') lang = 'yaml';
-      else if (fileName === 'package.json') lang = 'json';
-      else if (fileName === 'package-lock.json') lang = 'json';
-      else if (fileName === 'composer.json') lang = 'json';
-      else if (fileName === 'composer.lock') lang = 'json';
-      else if (fileName === 'gemfile') lang = 'ruby';
-      else if (fileName === 'cargo.toml') lang = 'toml';
-      else if (fileName === 'go.mod') lang = 'go';
-      else if (fileName === 'go.sum') lang = 'plaintext';
-      else if (fileName === 'pom.xml') lang = 'xml';
-      else if (fileName === 'build.gradle') lang = 'groovy';
-      else if (fileName === 'build.gradle.kts') lang = 'kotlin';
-      else if (fileName === 'gradlew') lang = 'bash';
-      else if (fileName === 'gradlew.bat') lang = 'batch';
-    }
-    
-    body.innerHTML = `
-      <div class="flex flex-col h-full">
-        <!-- Nagłówek z informacjami -->
-        <div class="flex-none mb-4">
-          <div class="flex items-center justify-between">
-            <div class="flex-1 min-w-0">
-              <div class="text-sm text-slate-500 mb-1 truncate">Ścieżka: ${escapeHtml(filename)}</div>
-              <div class="flex items-center gap-3">
-                <div class="font-medium text-slate-800 truncate">${fileName}</div>
-                <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-medium capitalize">
-                  ${lang.replace('-', ' ')}
-                </span>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 text-sm text-slate-500">
-              <span class="flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm-1 4a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd" />
-                </svg>
-                ${content.split('\n').length} linii
-              </span>
-              <span class="flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" />
-                  <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                </svg>
-                ${content.length.toLocaleString()} znaków
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Główna zawartość - przewijalny kod -->
-        <div class="flex-1 min-h-0 bg-gray-900 rounded-xl overflow-hidden shadow-lg border border-gray-800">
-          <div class="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
-            <div class="flex items-center gap-2">
-              <div class="flex gap-1.5">
-                <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <div class="w-3 h-3 rounded-full bg-green-500"></div>
-              </div>
-              <div class="text-xs text-gray-400 ml-2 font-mono">${fileName}</div>
-            </div>
-            <div class="text-xs text-gray-500 font-mono flex items-center gap-3">
-              <button class="copy-code-btn text-gray-400 hover:text-white transition-colors flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                  <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-                </svg>
-                Kopiuj
-              </button>
-            </div>
-          </div>
-          
-          <!-- Kontener kodu z przewijaniem -->
-          <div class="h-full max-h-[calc(70vh-120px)] overflow-auto custom-scrollbar">
-            <pre class="bg-gray-900 text-gray-100 p-6 text-sm leading-relaxed m-0"><code class="language-${lang} hljs">${escapeHtml(content)}</code></pre>
-          </div>
-        </div>
-        
-        <!-- Stopka z informacjami -->
-        <div class="flex-none mt-4 pt-4 border-t border-slate-200">
-          <div class="flex items-center justify-between text-sm text-slate-500">
-            <div class="flex items-center gap-4">
-              <span class="flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-                </svg>
-                Ostatnia modyfikacja: ${new Date().toLocaleDateString('pl-PL')}
-              </span>
-            </div>
-            <div class="text-xs text-slate-400 flex items-center gap-2">
-              <kbd class="px-2 py-1 bg-slate-100 rounded border border-slate-300">Shift</kbd>
-              +
-              <kbd class="px-2 py-1 bg-slate-100 rounded border border-slate-300">↑↓</kbd>
-              do przewijania
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    // Zastosuj highlight.js do kodu
-    const codeElement = body.querySelector('code');
-    if (codeElement) {
-      hljs.highlightElement(codeElement);
-    }
-    
-    // Dodaj obsługę przycisku kopiowania
-    const copyBtn = body.querySelector('.copy-code-btn');
-    copyBtn.onclick = async () => {
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(content);
-        } else {
-          const textArea = document.createElement('textarea');
-          textArea.value = content;
-          textArea.style.position = 'fixed';
-          textArea.style.top = '-9999px';
-          textArea.style.left = '-9999px';
-          document.body.appendChild(textArea);
-          textArea.focus();
-          textArea.select();
-          document.execCommand('copy');
-          document.body.removeChild(textArea);
+
+        // 3. Fallback - zapytaj backend czy to tekst (dla nietypowych rozszerzeń)
+        try { 
+            const check = await fetchJson(`/api/repos/${repoId}/checkfile/${encodeURIComponent(commitFile)}/${encodeURIComponent(path)}`); 
+            if(check.isText || check.isContentText) { 
+                const prev = await fetchJson(previewUrl); 
+                showCodeModal(prev.content, filename); 
+            } else { 
+                // Jeśli backend potwierdzi, że to binarne -> pobierz
+                window.open(downloadUrl, '_blank'); 
+            } 
+        } catch(e) { 
+            // W razie błędu -> pobierz
+            window.open(downloadUrl, '_blank'); 
         }
-        
-        // Animacja sukcesu
-        const originalHTML = copyBtn.innerHTML;
-        copyBtn.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-          </svg>
-          Skopiowano!
-        `;
-        copyBtn.classList.add('copy-success');
-        
-        setTimeout(() => {
-          copyBtn.innerHTML = originalHTML;
-          copyBtn.classList.remove('copy-success');
-        }, 2000);
-      } catch (err) {
-        console.error('Błąd kopiowania:', err);
-      }
     };
+}
+function showMediaModal(src, filename, type) { 
+    showOverlay('Podgląd pliku', filename, (body) => { 
+        // Powiększamy modal dla multimediów
+        body.parentElement.classList.replace('max-w-lg', 'max-w-5xl'); 
+        body.parentElement.style.width = '90%'; 
+        
+        let content = '';
+        
+        if(type === 'image') {
+            content = `<img src="${src}" class="max-w-full max-h-[75vh] shadow-sm rounded mx-auto" alt="${filename}">`;
+        } else if (type === 'video') {
+            content = `<video controls autoplay class="max-w-full max-h-[75vh] shadow-sm rounded mx-auto bg-black"><source src="${src}"></video>`;
+        } else if (type === 'audio') {
+            content = `
+                <div class="flex flex-col items-center justify-center p-10 w-full">
+                    <div class="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mb-6 text-indigo-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                        </svg>
+                    </div>
+                    <audio controls autoplay class="w-full max-w-md"><source src="${src}"></audio>
+                </div>
+            `;
+        } else if (type === 'pdf') {
+            content = `<iframe src="${src}" class="w-full h-[75vh] rounded border border-slate-200 bg-white"></iframe>`;
+        }
+
+        body.innerHTML = `<div class="bg-slate-100/50 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center min-h-[300px] relative backdrop-blur-sm">${content}</div>`; 
+    }); 
+}
+
+let currentEditor = null; // Zmienna globalna do trzymania instancji edytora
+
+function showCodeModal(content, filename){
+    showOverlay('Podgląd pliku', filename, (body) => {
+        body.parentElement.classList.replace('max-w-lg', 'max-w-5xl');
+        body.parentElement.style.width = '90%';
+        
+        // Zmieniono h-[75vh] na h-[60vh] lub calc, aby zmieściło się z nagłówkiem i stopką
+        body.innerHTML = `
+            <div class="flex flex-col h-[65vh] bg-[#1e1e1e] rounded-lg border border-slate-700 overflow-hidden my-2">
+                <div class="flex items-center justify-between px-4 py-2 bg-[#252526] border-b border-[#3e3e42] shrink-0">
+                    <span class="text-xs text-slate-400 font-mono flex items-center gap-2">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                        ${escapeHtml(filename)}
+                    </span>
+                    <span class="text-xs text-slate-500">${content.length} znaków</span>
+                </div>
+                <div id="monaco-container" class="flex-1 w-full relative"></div>
+            </div>`;
+
+        const container = document.getElementById('monaco-container');
+        const ext = filename.split('.').pop().toLowerCase();
+        
+        const langMap = {
+            'js': 'javascript', 'jsx': 'javascript', 'ts': 'typescript', 'tsx': 'typescript',
+            'py': 'python', 'rb': 'ruby', 'php': 'php', 'html': 'html', 'css': 'css',
+            'json': 'json', 'md': 'markdown', 'xml': 'xml', 'sql': 'sql', 'java': 'java',
+            'c': 'c', 'cpp': 'cpp', 'sh': 'shell', 'yml': 'yaml', 'yaml': 'yaml',
+            'gitignore': 'ini', 'mygitignore': 'ini', 'env': 'ini'
+        };
+        const language = langMap[ext] || 'plaintext';
+
+        require(['vs/editor/editor.main'], function () {
+            if (currentEditor) { currentEditor.dispose(); }
+            currentEditor = monaco.editor.create(container, {
+                value: content,
+                language: language,
+                theme: 'vs-dark',
+                readOnly: true,
+                minimap: { enabled: true },
+                scrollBeyondLastLine: false,
+                fontSize: 13,
+                fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                automaticLayout: true
+            });
+        });
+
+        // 3. Obsługa przycisku kopiowania
+        const cpBtn = document.getElementById('copyButton');
+        cpBtn.classList.remove('hidden');
+        cpBtn.className = "mr-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium text-sm flex items-center gap-2";
+        cpBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg> Skopiuj kod`;
+
+        cpBtn.onclick = async () => {
+            // Pobieramy tekst bezpośrednio z modelu Monaco (bezpieczniejsze)
+            const textToCopy = currentEditor ? currentEditor.getValue() : content;
+            let success = false;
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(textToCopy);
+                    success = true;
+                } else { throw new Error('Clipboard API unavailable'); }
+            } catch (err) {
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+                textArea.style.position = "fixed"; textArea.style.left = "-9999px";
+                document.body.appendChild(textArea); textArea.focus(); textArea.select();
+                success = document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+            if (success) {
+                cpBtn.classList.replace('bg-indigo-600', 'bg-green-600');
+                cpBtn.classList.replace('hover:bg-indigo-700', 'hover:bg-green-700');
+                cpBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Skopiowano!`;
+                setTimeout(() => {
+                    cpBtn.classList.replace('bg-green-600', 'bg-indigo-600');
+                    cpBtn.classList.replace('hover:bg-green-700', 'hover:bg-indigo-700');
+                    cpBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg> Skopiuj kod`;
+                }, 2000);
+            }
+        };
+    });
+}
+
+function showOverlay(title, sub, callback){ 
+    const o = document.getElementById('overlay'); 
+    o.classList.remove('hidden'); 
+    o.classList.add('flex'); 
+    document.getElementById('panelTitle').textContent = title; 
+    document.getElementById('panelSub').textContent = sub; 
+    const body = document.getElementById('panelBody'); 
+    body.innerHTML = ''; 
+    const p = document.getElementById('panel'); 
+    // Resetujemy do domyślnych ustawień (mały modal)
+    p.className = "bg-white rounded-2xl shadow-2xl w-[90%] max-w-lg flex flex-col max-h-[90vh] fade-in border border-slate-100 overflow-hidden";
+    document.getElementById('copyButton').classList.add('hidden'); 
+    callback(body); 
+}
+
+function closeOverlay(){ 
+    const o = document.getElementById('overlay'); 
+    o.classList.add('hidden'); 
+    o.classList.remove('flex'); 
     
-    // Ustaw przycisk kopiowania w głównym modal (dolny przycisk)
-    setupCopyButton(content);
-  });
+    // Sprzątanie po Monaco Editor
+    if (currentEditor) {
+        currentEditor.dispose();
+        currentEditor = null;
+    }
 }
 
 /* ------------------------
    UI small helpers
    ------------------------ */
-function showHelp(){
+function showHelp() {
   showOverlay('Pomoc - mygit', 'Wszystko co musisz wiedzieć o systemie wersjonowania mygit', (body) => {
+    
+    // --- ZMIANA SZEROKOŚCI MODALA ---
+    const panel = document.getElementById('panel');
+    panel.classList.remove('max-w-lg');
+    panel.classList.add('max-w-5xl');
+    // -------------------------------
+
     body.innerHTML = `
       <div class="space-y-8">
-        <!-- Nagłówek z ikoną -->
         <div class="text-center mb-6">
           <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -2186,161 +679,217 @@ function showHelp(){
           <p class="text-slate-600 mt-2">Lokalny system do zarządzania snapshotami projektów</p>
         </div>
 
-        <!-- Sekcja: Jak działa mygit -->
         <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-2xl border border-blue-100 slide-up">
           <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
               <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
             </svg>
-            Jak działa mygit?
+            Szybki start
           </h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="bg-white p-4 rounded-xl border border-blue-200 text-center hover-lift">
               <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <span class="text-blue-600 font-bold">1</span>
               </div>
-              <h4 class="font-medium text-slate-800 mb-2">Inicjalizacja</h4>
-              <p class="text-sm text-slate-600">Utwórz repozytorium w aktualnym folderze</p>
-              <code class="block mt-2 text-xs bg-blue-50 text-blue-700 p-2 rounded">mygit init</code>
+              <h4 class="font-medium text-slate-800 mb-2">Init</h4>
+              <p class="text-xs text-slate-600">Start projektu</p>
+              <code class="block mt-2 text-xs bg-blue-50 text-blue-700 p-1.5 rounded">mygit init</code>
             </div>
             <div class="bg-white p-4 rounded-xl border border-blue-200 text-center hover-lift">
               <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <span class="text-blue-600 font-bold">2</span>
               </div>
-              <h4 class="font-medium text-slate-800 mb-2">Snapshot</h4>
-              <p class="text-sm text-slate-600">Zrób backup projektu jako ZIP</p>
-              <code class="block mt-2 text-xs bg-blue-50 text-blue-700 p-2 rounded">mygit save "opis zmian"</code>
+              <h4 class="font-medium text-slate-800 mb-2">Save</h4>
+              <p class="text-xs text-slate-600">Zapisz wersję</p>
+              <code class="block mt-2 text-xs bg-blue-50 text-blue-700 p-1.5 rounded">mygit save "opis"</code>
             </div>
             <div class="bg-white p-4 rounded-xl border border-blue-200 text-center hover-lift">
               <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <span class="text-blue-600 font-bold">3</span>
               </div>
-              <h4 class="font-medium text-slate-800 mb-2">Przeglądanie</h4>
-              <p class="text-sm text-slate-600">Zobacz historię i przywróć pliki</p>
-              <code class="block mt-2 text-xs bg-blue-50 text-blue-700 p-2 rounded">mygit log</code>
+              <h4 class="font-medium text-slate-800 mb-2">Diff</h4>
+              <p class="text-xs text-slate-600">Sprawdź zmiany</p>
+              <code class="block mt-2 text-xs bg-blue-50 text-blue-700 p-1.5 rounded">mygit diff</code>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-blue-200 text-center hover-lift">
+              <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span class="text-blue-600 font-bold">4</span>
+              </div>
+              <h4 class="font-medium text-slate-800 mb-2">Get</h4>
+              <p class="text-xs text-slate-600">Pobierz wersję</p>
+              <code class="block mt-2 text-xs bg-blue-50 text-blue-700 p-1.5 rounded">mygit get</code>
             </div>
           </div>
         </div>
 
-        <!-- Sekcja: Podstawowe komendy -->
         <div class="bg-gradient-to-r from-emerald-50 to-green-50 p-5 rounded-2xl border border-emerald-100 slide-up" style="animation-delay: 0.1s">
           <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
             </svg>
-            Podstawowe komendy CLI
+            Komendy CLI
           </h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="space-y-2">
+              <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Podstawowe</h4>
+              
               <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
                 <div>
-                  <code class="text-sm font-mono text-slate-800">mygit init</code>
-                  <div class="text-xs text-slate-500 mt-1">Utwórz repozytorium</div>
+                  <code class="text-sm font-mono text-slate-800">mygit init [opis]</code>
+                  <div class="text-xs text-slate-500 mt-1">Tworzy repozytorium na serwerze</div>
                 </div>
-                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
               </div>
+
               <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
                 <div>
-                  <code class="text-sm font-mono text-slate-800">mygit comment "opis"</code>
-                  <div class="text-xs text-slate-500 mt-1">Zmień opis repozytorium</div>
+                  <code class="text-sm font-mono text-slate-800">mygit save [msg]</code>
+                  <div class="text-xs text-slate-500 mt-1">Wysyła snapshot (alias: push)</div>
                 </div>
-                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
               </div>
+
               <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
                 <div>
-                  <code class="text-sm font-mono text-slate-800">mygit save "opis"</code>
-                  <div class="text-xs text-slate-500 mt-1">Zrób snapshot</div>
+                  <code class="text-sm font-mono text-slate-800">mygit get [repo]</code>
+                  <div class="text-xs text-slate-500 mt-1">Pobiera snapshot (alias: pull)</div>
                 </div>
-                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
               </div>
-            </div>
-            <div class="space-y-2">
-              <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
-                <div>
-                  <code class="text-sm font-mono text-slate-800">mygit log</code>
-                  <div class="text-xs text-slate-500 mt-1">Pokaż historię</div>
-                </div>
-                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
-              </div>
+              
               <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
                 <div>
                   <code class="text-sm font-mono text-slate-800">mygit status</code>
-                  <div class="text-xs text-slate-500 mt-1">Status repozytorium</div>
+                  <div class="text-xs text-slate-500 mt-1">Pokazuje info o repo i ostatnim save</div>
                 </div>
-                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
               </div>
+            </div>
+
+            <div class="space-y-2">
+              <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Narzędzia i Analiza</h4>
+
               <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
                 <div>
-                  <code class="text-sm font-mono text-slate-800">mygit list</code>
-                  <div class="text-xs text-slate-500 mt-1">Lista repozytoriów</div>
+                  <code class="text-sm font-mono text-slate-800">mygit diff [snap]</code>
+                  <div class="text-xs text-slate-500 mt-1">Pokazuje różnice (+ dodane, - usunięte)</div>
                 </div>
-                <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">podstawowe</span>
+                <span class="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">NOWOŚĆ</span>
+              </div>
+
+              <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
+                <div>
+                  <code class="text-sm font-mono text-slate-800">mygit search "text"</code>
+                  <div class="text-xs text-slate-500 mt-1">Szuka frazy w opisach snapshotów</div>
+                </div>
+                <span class="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">NOWOŚĆ</span>
+              </div>
+
+              <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
+                <div>
+                  <code class="text-sm font-mono text-slate-800">mygit cat &lt;zip&gt; &lt;plik&gt;</code>
+                  <div class="text-xs text-slate-500 mt-1">Wyświetla treść pojedynczego pliku z historii</div>
+                </div>
+                <span class="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">NOWOŚĆ</span>
+              </div>
+
+              <div class="flex items-center justify-between p-3 bg-white rounded-xl border hover:bg-emerald-50 transition-colors">
+                <div>
+                  <code class="text-sm font-mono text-slate-800">mygit delete-repo</code>
+                  <div class="text-xs text-slate-500 mt-1">Usuwa całe repozytorium z serwera</div>
+                </div>
+                <span class="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium">NIEBEZPIECZNE</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Sekcja: Przykłady użycia -->
         <div class="bg-gradient-to-r from-amber-50 to-orange-50 p-5 rounded-2xl border border-amber-100 slide-up" style="animation-delay: 0.2s">
           <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
               <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
             </svg>
-            Przykłady użycia
+            Scenariusze użycia
           </h3>
           <div class="space-y-4">
+            
             <div class="bg-white p-4 rounded-xl border border-amber-200 hover-lift">
               <div class="flex items-start gap-3">
                 <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
-                  </svg>
+                  <span class="text-amber-700 font-bold">1</span>
                 </div>
                 <div>
-                  <h4 class="font-medium text-slate-800 mb-1">Nowy projekt</h4>
-                  <p class="text-sm text-slate-600 mb-2">Utwórz repozytorium dla nowego projektu. Nazwa będzie taka jak nazwa folderu.</p>
-                  <pre class="text-xs bg-amber-50 text-amber-800 p-3 rounded-lg overflow-x-auto"># Przejdź do folderu projektu
-cd /ścieżka/do/projektu
+                  <h4 class="font-medium text-slate-800 mb-1">Codzienna praca</h4>
+                  <p class="text-sm text-slate-600 mb-2">Standardowy cykl pracy developera.</p>
+                  <pre class="text-xs bg-amber-50 text-amber-800 p-3 rounded-lg overflow-x-auto"># 1. Zobacz co się dzieje
+mygit status
 
-# Utwórz repozytorium mygit
-mygit init
+# 2. Zapisz zmiany po skończonej pracy
+mygit save "Dodałem logowanie"
 
-# Nadaj opis projektowi
-mygit comment "Mój projekt Node.js - API serwer"</pre>
+# 3. Zobacz różnice względem poprzedniej wersji
+mygit diff</pre>
                 </div>
               </div>
             </div>
+
             <div class="bg-white p-4 rounded-xl border border-amber-200 hover-lift">
               <div class="flex items-start gap-3">
-                <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
+                 <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span class="text-amber-700 font-bold">2</span>
                 </div>
                 <div>
-                  <h4 class="font-medium text-slate-800 mb-1">Regularne backupy</h4>
-                  <p class="text-sm text-slate-600 mb-2">Regularnie rób snapshoty po ważnych zmianach w kodzie.</p>
-                  <pre class="text-xs bg-amber-50 text-amber-800 p-3 rounded-lg overflow-x-auto"># Zrób snapshot z opisem zmian
-mygit save "Dodano endpoint /api/users"
+                  <h4 class="font-medium text-slate-800 mb-1">Analiza i naprawa (Power User)</h4>
+                  <p class="text-sm text-slate-600 mb-2">Gdy coś zepsułeś i szukasz przyczyny.</p>
+                  <pre class="text-xs bg-amber-50 text-amber-800 p-3 rounded-lg overflow-x-auto"># 1. Znajdź kiedy coś działało
+mygit search "fix login"
 
-# Kolejny snapshot po kolejnych zmianach
-mygit save "Naprawiono bug z walidacją email"
+# 2. Zobacz co dokładnie zmieniłeś w tamtym pliku (snapshot vs poprzedni)
+mygit diff 2026-01-12_14-00-00.zip
 
-# Sprawdź historię snapshotów
-mygit log
-
-# Lub sprawdź status repozytorium
-mygit status</pre>
+# 3. Przywróć tylko JEDEN plik z tamtej wersji (bez pobierania całości)
+mygit cat 2026-01-12_14-00-00.zip src/auth.js > src/auth.js</pre>
                 </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-cyan-50 to-blue-50 p-5 rounded-2xl border border-cyan-100 slide-up" style="animation-delay: 0.25s">
+          <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-cyan-600" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd" />
+            </svg>
+            Opcje komendy GET
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex items-start gap-3 p-3 bg-white rounded-xl border hover:bg-cyan-50 transition-colors">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-cyan-100 rounded-lg flex items-center justify-center">
+                  <span class="text-cyan-600 font-bold text-sm">-f</span>
+                </div>
+              </div>
+              <div>
+                <code class="text-sm font-mono text-slate-800">--force</code>
+                <div class="text-xs text-slate-500 mt-1">Nadpisz istniejące pliki bez pytania (domyślnie pyta)</div>
+              </div>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 bg-white rounded-xl border hover:bg-cyan-50 transition-colors">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <span class="text-gray-400 font-bold text-sm">?</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-sm font-mono text-slate-400">Inne opcje</span>
+                <div class="text-xs text-slate-400 mt-1">Więcej flag w przyszłych wersjach mygit.</div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Sekcja: Funkcje web panelu -->
+
         <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-5 rounded-2xl border border-purple-100 slide-up" style="animation-delay: 0.3s">
           <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
-            <svg xmlns="http://www.w3.org2000/svg" class="h-5 w-5 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
             </svg>
             Funkcje panelu webowego
@@ -2377,7 +926,6 @@ mygit status</pre>
           </div>
         </div>
 
-        <!-- Sekcja: .mygitignore -->
         <div class="bg-gradient-to-r from-rose-50 to-pink-50 p-5 rounded-2xl border border-rose-100 slide-up" style="animation-delay: 0.4s">
           <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2 text-lg">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-rose-600" viewBox="0 0 20 20" fill="currentColor">
@@ -2433,34 +981,26 @@ yarn-error.log*</pre>
             </div>
           </div>
         </div>
-
-        <!-- Stopka -->
         <div class="text-center pt-4 border-t border-slate-200">
           <p class="text-sm text-slate-500">
-            <strong>mygit v1.0.0</strong> | 
-            System lokalnego wersjonowania | 
-            Panel dostępny na: <code class="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs">http://${window.location.host}</code>
+            <strong>mygit v2.2</strong> | 
+            Power Tool Edition | 
+            Panel: <code class="bg-slate-100 text-slate-700 px-2 py-1 rounded text-xs">http://${window.location.host}</code>
           </p>
         </div>
+      </div>
       </div>
     `;
   });
 }
-
-/* ------------------------
-   Init
-   ------------------------ */
-window.addEventListener('load', () => {
-  refresh();
-  
-  // Ustaw domyślne sortowanie
-  setActiveSort('newest');
-  
-  // Focus na wyszukiwarkę po załadowaniu
-  setTimeout(() => {
-    searchInput.focus();
-  }, 500);
-});
+function renderDashboard() { document.getElementById('dashTotalRepos').textContent = repos.length; document.getElementById('dashTotalSize').textContent = humanSize(repos.reduce((acc, r) => acc + (r.totalSize || 0), 0)); document.getElementById('dashTotalSnaps').textContent = repos.reduce((acc, r) => acc + (r.commitCount || 0), 0);
+    const favs = repos.filter(r => r.isFavourite); const favSection = document.getElementById('dashFavSection'); const favGrid = document.getElementById('dashFavGrid');
+    if (favs.length > 0) { favSection.classList.remove('hidden'); favGrid.innerHTML = favs.map(r => `<div onclick="selectRepo('${r.id}')" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 hover:-translate-y-0.5 transition-all cursor-pointer group"><div class="flex justify-between items-start mb-2"><h4 class="font-bold text-slate-800 truncate pr-2 group-hover:text-indigo-600 transition-colors">${escapeHtml(r.name)}</h4><span class="text-yellow-400">★</span></div><p class="text-xs text-slate-500 line-clamp-2 mb-3 h-8 leading-4 opacity-80">${escapeHtml(r.description || 'Brak opisu')}</p><div class="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-2 border-t border-slate-50"><span>${r.updatedAt ? new Date(r.updatedAt).toLocaleDateString() : '-'}</span><span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">${r.commitCount || 0} snap</span></div></div>`).join(''); } else { favSection.classList.add('hidden'); }
+    const recent = [...repos].sort((a,b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)).slice(0, 5);
+    const recentGrid = document.getElementById('dashRecentGrid');
+    if(recent.length > 0) { recentGrid.innerHTML = recent.map(r => `<div onclick="selectRepo('${r.id}')" class="flex items-center gap-4 bg-white p-3 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-slate-50 transition-all cursor-pointer"><div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg></div><div class="flex-1 min-w-0"><div class="flex justify-between"><h4 class="font-medium text-slate-800 text-sm truncate">${escapeHtml(r.name)}</h4><span class="text-[10px] text-slate-400">${fmtDate(r.updatedAt)}</span></div><div class="flex justify-between items-center mt-0.5"><p class="text-xs text-slate-500 truncate max-w-[80%]">${escapeHtml(r.description || 'Brak opisu')}</p><span class="text-[10px] text-slate-400 bg-slate-50 px-1 rounded border border-slate-100">${humanSize(r.totalSize)}</span></div></div></div>`).join(''); }
+}
+function copyToClipboard(el, text) { if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text); } else { const textArea = document.createElement("textarea"); textArea.value = text; textArea.style.position = "fixed"; document.body.appendChild(textArea); textArea.focus(); textArea.select(); try { document.execCommand('copy'); } catch (err) {} document.body.removeChild(textArea); } const iconContainer = el.querySelector('.icon-container'); const textContainer = el.querySelector('.text-container'); const originalIcon = iconContainer.innerHTML; const originalText = textContainer.innerHTML; el.classList.add('bg-green-50', 'border-green-200'); el.classList.remove('hover:bg-indigo-50', 'hover:border-indigo-200'); iconContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`; textContainer.innerHTML = `<span class="text-green-700 font-medium text-xs">Skopiowano!</span>`; setTimeout(() => { el.classList.remove('bg-green-50', 'border-green-200'); el.classList.add('hover:bg-indigo-50', 'hover:border-indigo-200'); iconContainer.innerHTML = originalIcon; textContainer.innerHTML = originalText; }, 2000); }
 </script>
 </body>
 </html>
