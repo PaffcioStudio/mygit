@@ -5,8 +5,7 @@
   "main": "server.mjs",
   "type": "module",
   "bin": {
-    "mygit": "./cli/index.js",
-    "mygit-local": "./cli/index.js"
+    "mygit": "./cli/index.js"
   },
   "scripts": {
     "start": "node server.mjs",
@@ -15,6 +14,7 @@
   "dependencies": {
     "adm-zip": "^0.5.16",
     "archiver": "^5.3.1",
+    "better-sqlite3": "^9.4.3",
     "commander": "^14.0.2",
     "cors": "^2.8.5",
     "dayjs": "^1.11.19",
@@ -26,7 +26,8 @@
     "mime": "^3.0.0",
     "pino": "^8.20.0",
     "rimraf": "^5.0.0",
-    "serve-static": "^1.15.0"
+    "serve-static": "^1.15.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

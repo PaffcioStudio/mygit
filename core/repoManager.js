@@ -1,158 +1,125 @@
-import fs from "fs-extra";
-import path from "path";
-import os from "os";
-import crypto from "crypto";
-import AdmZip from "adm-zip";
-import { repoBasePath, ensureDataDir } from "./utils.js";
-import { commitSnapshot } from "./snapshot.js";
+// repoManager.js — zarządzanie repozytoriami (SQLite-backed)
+import fs from 'fs-extra';
+import path from 'path';
+import os from 'os';
+import crypto from 'crypto';
+import AdmZip from 'adm-zip';
+import { repoBasePath, ensureDataDir, config } from './utils.js';
+import { commitSnapshot } from './snapshot.js';
+import { validateAndFixMeta, generateUUID } from './validation.js';
+import { getDefaultCategory } from './categories.js';
+import { zipCache } from './cache.js';
+import {
+  dbListRepos, dbGetRepo, dbCreateRepo, dbUpdateRepo, dbDeleteRepo, dbUpdateRepoStats,
+  dbGetCommits, dbAddCommit, dbDeleteCommit,
+} from './db.js';
 
-// Upewnij się, że używamy właściwego katalogu danych przy starcie
 await ensureDataDir();
 await fs.ensureDir(repoBasePath());
 
-// === PUBLIC API ===
-
+// ── PUBLIC API ─────────────────────────────────────────────────────────────
 export async function listRepos() {
-  const base = repoBasePath();
-  if (!await fs.pathExists(base)) return [];
-  
-  const dirs = await fs.readdir(base);
-  const out = [];
-  for (const d of dirs) {
-    const metaFile = path.join(base, d, "meta.json");
-    if (await fs.pathExists(metaFile)) {
-      try {
-        const meta = await fs.readJson(metaFile);
-        out.push({ id: d, ...meta });
-      } catch (e) {
-        out.push({ id: d, name: d, description: "Błąd odczytu metadanych" });
-      }
-    }
-  }
-  return out;
+  return dbListRepos();
 }
 
-export async function registerUploadedSnapshot(repoId, tempZipPath, message = "snapshot") {
-  const repoDir = await ensureRepoExists(repoId);
-  const versionsDir = path.join(repoDir, "versions");
-  
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "_").split("Z")[0];
+export async function registerUploadedSnapshot(repoId, tempZipPath, message = 'snapshot') {
+  const repoDir     = await ensureRepoExists(repoId);
+  const versionsDir = path.join(repoDir, 'versions');
+
+  const timestamp   = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').split('Z')[0];
   const archiveName = `${timestamp}.zip`;
-  const outPath = path.join(versionsDir, archiveName);
+  const outPath     = path.join(versionsDir, archiveName);
 
   console.log(`📥 Rejestrowanie uploadu: ${repoId} -> ${archiveName}`);
 
   await fs.ensureDir(versionsDir);
   await fs.move(tempZipPath, outPath, { overwrite: true });
 
-  const commFile = path.join(repoDir, "commits.json");
-  const commits = (await fs.pathExists(commFile)) ? await fs.readJson(commFile) : [];
   const stat = await fs.stat(outPath);
-  
   let fileCount = 0;
   try {
     const zip = new AdmZip(outPath);
     fileCount = zip.getEntries().filter(e => !e.isDirectory).length;
-  } catch (e) { /* ignore zip error on count */ }
+    zipCache.set(outPath, zip);
+  } catch {}
 
   const entry = {
-    id: archiveName.replace(/\.zip$/, ""),
-    file: archiveName,
+    id:        archiveName.replace(/\.zip$/, ''),
+    file:      archiveName,
     message,
-    size: stat.size,
-    date: new Date().toISOString(),
-    fileCount
+    size:      stat.size,
+    date:      new Date().toISOString(),
+    fileCount,
   };
 
-  commits.push(entry);
-  await fs.writeJson(commFile, commits, { spaces: 2 });
+  dbAddCommit(repoId, entry);
+  const now = new Date().toISOString();
+  dbUpdateRepo(repoId, { updated_at: now, last_commit: entry });
 
-  const metaFile = path.join(repoDir, "meta.json");
-  let meta = {};
-  try { meta = await fs.readJson(metaFile); } catch (e) {}
-  
-  meta.updatedAt = new Date().toISOString();
-  meta.lastCommit = entry;
-  await fs.writeJson(metaFile, meta, { spaces: 2 });
+  // Stats — inkrementalnie
+  const current = dbGetRepo(repoId);
+  dbUpdateRepoStats(repoId, (current?.snapshots || 0) + 1, (current?.size || 0) + stat.size, now);
 
   return entry;
 }
 
-export async function createRepo(repoId, displayName = null, description = "") {
+export async function createRepo(repoId, displayName = null, description = '', category = null) {
   const repoDir = path.join(repoBasePath(), repoId);
-  if (await fs.pathExists(repoDir)) {
-    throw new Error("Repozytorium już istnieje");
-  }
-  
+  if (await fs.pathExists(repoDir)) throw new Error('Repozytorium już istnieje');
+
   await fs.ensureDir(repoDir);
-  await fs.ensureDir(path.join(repoDir, "versions"));
-  
-  const metaData = {
-    id: repoId,
-    name: displayName || repoId,
-    description,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  
-  await fs.writeJson(path.join(repoDir, "meta.json"), metaData, { spaces: 2 });
-  await fs.writeJson(path.join(repoDir, "commits.json"), []);
-  
-  return metaData;
+  await fs.ensureDir(path.join(repoDir, 'versions'));
+
+  if (!category) {
+    const defaultCat = await getDefaultCategory();
+    category = defaultCat.id;
+  }
+
+  const uuid = generateUUID();
+  const meta = dbCreateRepo(repoId, displayName || repoId, description, category, uuid);
+  console.log(`✅ Utworzono repozytorium: ${repoId} (UUID: ${uuid})`);
+  return meta;
 }
 
 export async function ensureRepoExists(repoId) {
   const p = path.join(repoBasePath(), repoId);
-  if (!await fs.pathExists(p)) {
-    throw new Error(`Repozytorium '${repoId}' nie istnieje`);
-  }
+  if (!await fs.pathExists(p)) throw new Error(`Repozytorium '${repoId}' nie istnieje`);
   return p;
 }
 
-export async function commitRepo(repoId, sourcePath, message = "Auto commit") {
-  const repoDir = await ensureRepoExists(repoId);
-  const versionsDir = path.join(repoDir, "versions");
+export async function commitRepo(repoId, sourcePath, message = 'Auto commit') {
+  const repoDir     = await ensureRepoExists(repoId);
+  const versionsDir = path.join(repoDir, 'versions');
   console.log(`📦 Tworzenie snapshotu dla: ${sourcePath}`);
   const result = await commitSnapshot(sourcePath, versionsDir, message);
-  
-  const commFile = path.join(repoDir, "commits.json");
-  const commits = (await fs.pathExists(commFile)) ? await fs.readJson(commFile) : [];
-  
+
   const entry = {
-    id: result.archiveName.replace(/\.zip$/, ""),
-    file: result.archiveName,
+    id:        result.archiveName.replace(/\.zip$/, ''),
+    file:      result.archiveName,
     message,
-    size: result.size,
-    date: new Date().toISOString(),
-    fileCount: result.fileCount || 0
+    size:      result.size,
+    date:      new Date().toISOString(),
+    fileCount: result.fileCount || 0,
   };
-  
-  commits.push(entry);
-  await fs.writeJson(commFile, commits, { spaces: 2 });
-  
-  const metaFile = path.join(repoDir, "meta.json");
-  let meta = {};
-  try { meta = await fs.readJson(metaFile); } catch (e) {}
-  
-  meta.updatedAt = new Date().toISOString();
-  meta.lastCommit = entry;
-  await fs.writeJson(metaFile, meta, { spaces: 2 });
+
+  dbAddCommit(repoId, entry);
+  const now = new Date().toISOString();
+  dbUpdateRepo(repoId, { updated_at: now, last_commit: entry });
+
+  const current = dbGetRepo(repoId);
+  dbUpdateRepoStats(repoId, (current?.snapshots || 0) + 1, (current?.size || 0) + result.size, now);
+
   return entry;
 }
 
 export async function getRepoCommits(repoId) {
-  const repoDir = await ensureRepoExists(repoId);
-  const commFile = path.join(repoDir, "commits.json");
-  if (!await fs.pathExists(commFile)) return [];
-  try {
-    const commits = await fs.readJson(commFile);
-    return commits.sort((a, b) => new Date(b.date) - new Date(a.date));
-  } catch (e) { return []; }
+  await ensureRepoExists(repoId);
+  return dbGetCommits(repoId);
 }
 
 export async function getCommitPath(repoId, commitFile) {
-  const repoDir = await ensureRepoExists(repoId);
-  const versionsDir = path.join(repoDir, "versions");
+  const repoDir     = await ensureRepoExists(repoId);
+  const versionsDir = path.join(repoDir, 'versions');
   let targetPath = path.join(versionsDir, commitFile);
   if (await fs.pathExists(targetPath)) return targetPath;
   if (!commitFile.endsWith('.zip')) {
@@ -166,233 +133,198 @@ export async function getCommitPath(repoId, commitFile) {
 }
 
 export async function deleteCommit(repoId, commitFile) {
-  const repoDir = await ensureRepoExists(repoId);
+  const repoDir    = await ensureRepoExists(repoId);
   const commitPath = await getCommitPath(repoId, commitFile);
-  
   if (!commitPath) throw new Error(`Snapshot '${commitFile}' nie znaleziony.`);
 
-  // 1. Usuń plik fizycznie
+  const stat = await fs.stat(commitPath).catch(() => ({ size: 0 }));
   await fs.remove(commitPath);
 
-  // 2. Zaktualizuj commits.json
-  const commFile = path.join(repoDir, "commits.json");
-  let newCommits = [];
-  
-  if (await fs.pathExists(commFile)) {
-    const commits = await fs.readJson(commFile);
-    const targetName = path.basename(commitPath);
-    // Filtrujemy, żeby usunąć ten konkretny plik
-    newCommits = commits.filter(c => c.file !== targetName);
-    await fs.writeJson(commFile, newCommits, { spaces: 2 });
+  const targetName = path.basename(commitPath);
+  dbDeleteCommit(repoId, targetName);
+
+  const current = dbGetRepo(repoId);
+  if (current) {
+    const newSnapshots = Math.max(0, (current.snapshots || 0) - 1);
+    const newSize      = Math.max(0, (current.size      || 0) - stat.size);
+    const remaining    = dbGetCommits(repoId);
+    const updatedAt    = remaining.length > 0 ? remaining[0].date : current.updatedAt;
+    dbUpdateRepoStats(repoId, newSnapshots, newSize, updatedAt);
+    dbUpdateRepo(repoId, {
+      updated_at:  new Date().toISOString(),
+      last_commit: remaining.length > 0 ? remaining[0] : null,
+    });
   }
 
-  // 3. Zaktualizuj meta.json (To naprawia statystyki i lastCommit!)
-  const metaFile = path.join(repoDir, "meta.json");
-  if (await fs.pathExists(metaFile)) {
-    const meta = await fs.readJson(metaFile);
-    meta.updatedAt = new Date().toISOString();
-    // Ustawiamy ostatni commit na ostatni element z nowej listy (lub null jeśli pusto)
-    meta.lastCommit = newCommits.length > 0 ? newCommits[newCommits.length - 1] : null;
-    await fs.writeJson(metaFile, meta, { spaces: 2 });
-  }
-
+  zipCache.invalidate(commitPath);
   return true;
 }
 
 export async function deleteRepo(repoId) {
   const repoDir = await ensureRepoExists(repoId);
   await fs.remove(repoDir);
+  dbDeleteRepo(repoId);
   return true;
 }
 
-// === DIFF ENGINE (Wersja Pancerna) ===
+export async function updateRepoCategory(repoId, categoryId) {
+  await ensureRepoExists(repoId);
+  if (!/^[a-z0-9-]+$/.test(categoryId)) throw new Error("Kategoria musi być ID (np. 'backend')");
+  dbUpdateRepo(repoId, { category: categoryId, updated_at: new Date().toISOString() });
+  return dbGetRepo(repoId);
+}
 
+export async function updateRepoComment(repoId, comment) {
+  await ensureRepoExists(repoId);
+  dbUpdateRepo(repoId, { description: comment, updated_at: new Date().toISOString() });
+  return dbGetRepo(repoId);
+}
+
+export async function getRepoStats(repoId) {
+  const repo    = dbGetRepo(repoId);
+  const commits = dbGetCommits(repoId);
+  return {
+    commitCount: commits.length,
+    totalSize:   repo?.size || 0,
+    averageSize: commits.length > 0 ? (repo?.size || 0) / commits.length : 0,
+    firstCommit: commits.length > 0 ? commits[commits.length - 1] : null,
+    lastCommit:  commits.length > 0 ? commits[0] : null,
+  };
+}
+
+export async function reassignReposCategory(oldCategoryId, fallbackCategoryId = 'bez-kategorii') {
+  const all = dbListRepos();
+  let count = 0;
+  for (const repo of all) {
+    if (repo.category === oldCategoryId) {
+      dbUpdateRepo(repo.id, { category: fallbackCategoryId, updated_at: new Date().toISOString() });
+      count++;
+    }
+  }
+  return count;
+}
+
+// ── DIFF ENGINE ────────────────────────────────────────────────────────────
 async function unpackToTemp(zipPath, destDir) {
-  // Używamy bezpiecznej ścieżki i czyścimy ją najpierw
   await fs.emptyDir(destDir);
-  
   try {
     const zip = new AdmZip(zipPath);
-    // Wyodrębnij synchronicznie (AdmZip jest sync), ale w bloku try/catch
     zip.extractAllTo(destDir, true);
   } catch (e) {
     console.error(`❌ Błąd rozpakowywania ${path.basename(zipPath)}:`, e.message);
-    // Jeśli ZIP jest uszkodzony, zwracamy pustą mapę, ale NIE rzucamy błędu wyżej,
-    // żeby porównanie zadziałało (po prostu potraktuje ten snapshot jako pusty)
     return {};
   }
-  
-  // Zbierz pliki i policz hash
-  const map = {};
+  const map = [];
   const files = [];
-
   async function walk(dir) {
     try {
-        const items = await fs.readdir(dir);
-        for (const it of items) {
-            const full = path.join(dir, it);
-            try {
-                const st = await fs.stat(full);
-                if (st.isDirectory()) {
-                    await walk(full);
-                } else {
-                    files.push(full);
-                }
-            } catch(e) { /* ignore stat error */ }
-        }
-    } catch(e) { /* ignore readdir error */ }
+      for (const it of await fs.readdir(dir)) {
+        const full = path.join(dir, it);
+        try {
+          const st = await fs.stat(full);
+          if (st.isDirectory()) await walk(full);
+          else files.push(full);
+        } catch {}
+      }
+    } catch {}
   }
-  
   await walk(destDir);
-  
+  const result = {};
   for (const f of files) {
-    const rel = path.relative(destDir, f).replaceAll(path.sep, "/");
+    const rel = path.relative(destDir, f).replaceAll(path.sep, '/');
     try {
-        const content = await fs.readFile(f);
-        const hash = crypto.createHash("sha1").update(content).digest("hex");
-        map[rel] = { size: content.length, hash };
-    } catch (err) {
-        // Jeśli antywirus zablokuje odczyt konkretnego pliku, pomiń go
-        console.warn(`⚠️ Pominięto plik (blokada?): ${rel}`);
-    }
+      const content = await fs.readFile(f);
+      const hash    = crypto.createHash('sha1').update(content).digest('hex');
+      result[rel]   = { size: content.length, hash };
+    } catch { console.warn(`⚠️ Pominięto plik: ${rel}`); }
   }
-  
+  return result;
+}
+
+export async function getSnapshotMap(repoId, commitFile = 'latest') {
+  const repoDir     = await ensureRepoExists(repoId);
+  const versionsDir = path.join(repoDir, 'versions');
+  const files       = await fs.readdir(versionsDir);
+  const sorted      = files.filter(f => f.endsWith('.zip')).sort();
+  let targetZip = commitFile === 'latest' ? sorted[sorted.length - 1] : commitFile;
+  if (!targetZip) return {};
+  const zipPath = path.join(versionsDir, targetZip);
+  let zip = zipCache.get(zipPath);
+  if (!zip) { zip = new AdmZip(zipPath); zipCache.set(zipPath, zip); }
+  const map = {};
+  zip.getEntries().forEach(entry => {
+    if (!entry.isDirectory) {
+      const content = entry.getData();
+      const hash    = crypto.createHash('sha1').update(content).digest('hex');
+      map[entry.entryName] = { size: entry.header.size, hash };
+    }
+  });
   return map;
 }
 
 export async function computeDiff(repoId, commitFile) {
   console.log(`🔍 computeDiff: repo=${repoId}, input=${commitFile}`);
-  
-  // Unikalny katalog temp per request
-  const tmpBase = path.join(os.tmpdir(), "mygit_diff_" + Date.now() + "_" + Math.random().toString(36).slice(2));
-  
+  const tmpBase = path.join(os.tmpdir(), `mygit_diff_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   try {
-    const repoDir = await ensureRepoExists(repoId);
-    const versionsDir = path.join(repoDir, "versions");
-    
-    if (!await fs.pathExists(versionsDir)) throw new Error("Brak katalogu versions");
-    
-    const files = await fs.readdir(versionsDir);
+    const repoDir     = await ensureRepoExists(repoId);
+    const versionsDir = path.join(repoDir, 'versions');
+    if (!await fs.pathExists(versionsDir)) throw new Error('Brak katalogu versions');
+
+    const files  = await fs.readdir(versionsDir);
     const sorted = files.filter(f => f.endsWith('.zip')).sort();
-    
+
     let targetFilename = null;
     if (!commitFile || commitFile === 'latest') {
-        targetFilename = sorted[sorted.length - 1];
+      targetFilename = sorted[sorted.length - 1];
     } else {
-        if (sorted.includes(commitFile)) targetFilename = commitFile;
-        else if (sorted.includes(commitFile + '.zip')) targetFilename = commitFile + '.zip';
-        else {
-            const matches = sorted.filter(f => f.startsWith(commitFile));
-            if (matches.length > 0) targetFilename = matches[matches.length - 1];
-        }
+      if (sorted.includes(commitFile))              targetFilename = commitFile;
+      else if (sorted.includes(commitFile + '.zip')) targetFilename = commitFile + '.zip';
+      else {
+        const matches = sorted.filter(f => f.startsWith(commitFile));
+        if (matches.length) targetFilename = matches[matches.length - 1];
+      }
     }
-
     if (!targetFilename) throw new Error(`Snapshot nie znaleziony: ${commitFile}`);
 
-    // Poprzedni commit
-    const idx = sorted.indexOf(targetFilename);
-    const prevFilename = (idx > 0) ? sorted[idx - 1] : null;
-    
-    const result = { 
-        added: [], removed: [], modified: [], 
-        prev: prevFilename, current: targetFilename,
-        stats: { added: 0, removed: 0, modified: 0, totalChanges: 0 }
+    const idx          = sorted.indexOf(targetFilename);
+    const prevFilename = idx > 0 ? sorted[idx - 1] : null;
+    const result       = {
+      added: [], removed: [], modified: [],
+      prev: prevFilename, current: targetFilename,
+      stats: { added: 0, removed: 0, modified: 0, totalChanges: 0 }
     };
-
     if (!prevFilename) return result;
 
-    const aDir = path.join(tmpBase, "prev");
-    const bDir = path.join(tmpBase, "curr");
-    
-    // Rozpakuj oba snapshoty
-    const aMap = await unpackToTemp(path.join(versionsDir, prevFilename), aDir);
-    const bMap = await unpackToTemp(path.join(versionsDir, targetFilename), bDir);
-
-    // Porównaj
+    const aMap = await unpackToTemp(path.join(versionsDir, prevFilename),   path.join(tmpBase, 'prev'));
+    const bMap = await unpackToTemp(path.join(versionsDir, targetFilename), path.join(tmpBase, 'curr'));
     const aKeys = new Set(Object.keys(aMap));
     const bKeys = new Set(Object.keys(bMap));
-
     for (const k of bKeys) {
-        if (!aKeys.has(k)) result.added.push(k);
-        else if (aMap[k].hash !== bMap[k].hash) result.modified.push(k);
+      if (!aKeys.has(k)) result.added.push(k);
+      else if (aMap[k].hash !== bMap[k].hash) result.modified.push(k);
     }
-    for (const k of aKeys) {
-        if (!bKeys.has(k)) result.removed.push(k);
-    }
-
-    result.stats.added = result.added.length;
-    result.stats.removed = result.removed.length;
-    result.stats.modified = result.modified.length;
-    result.stats.totalChanges = result.stats.added + result.stats.removed + result.stats.modified;
-
-    console.log(`Diff OK: ${result.stats.totalChanges} zmian`);
+    for (const k of aKeys) { if (!bKeys.has(k)) result.removed.push(k); }
+    result.stats = {
+      added: result.added.length, removed: result.removed.length,
+      modified: result.modified.length,
+      totalChanges: result.added.length + result.removed.length + result.modified.length
+    };
+    console.log(`✅ Diff OK: ${result.stats.totalChanges} zmian`);
     return result;
-
   } catch (error) {
-    console.error("❌ Błąd w computeDiff:", error.message);
+    console.error('❌ Błąd w computeDiff:', error.message);
     throw error;
   } finally {
-    // Sprzątanie asynchroniczne - nie blokuj odpowiedzi
     fs.remove(tmpBase).catch(() => {});
   }
 }
 
 export async function getFileFromCommit(repoId, commitFile, filePath) {
   const commitPath = await getCommitPath(repoId, commitFile);
-  if (!commitPath) throw new Error("Snapshot nie znaleziony");
-  
-  const zip = new AdmZip(commitPath);
+  if (!commitPath) throw new Error('Snapshot nie znaleziony');
+  let zip = zipCache.get(commitPath);
+  if (!zip) { zip = new AdmZip(commitPath); zipCache.set(commitPath, zip); }
   const entry = zip.getEntry(filePath);
-  if (!entry) throw new Error("Plik nie istnieje w snapshotcie");
-  
-  return {
-    name: path.basename(filePath),
-    path: filePath,
-    size: entry.header.size,
-    data: entry.getData(),
-    isText: !entry.isDirectory && isTextFile(filePath)
-  };
-}
-
-function isTextFile(filename) {
-  const ext = path.extname(filename).toLowerCase();
-  const textExtensions = ['.txt', '.js', '.json', '.html', '.css', '.md', '.xml', '.yml', '.yaml', '.php', '.py', '.java', '.c', '.cpp', '.h', '.cs', '.rb', '.go', '.rs', '.ts', '.jsx', '.tsx', '.vue', '.svelte'];
-  return textExtensions.includes(ext);
-}
-
-export async function getRepoStats(repoId) {
-  const repoDir = await ensureRepoExists(repoId);
-  const versionsDir = path.join(repoDir, "versions");
-  const commitsFile = path.join(repoDir, "commits.json");
-  const commits = (await fs.pathExists(commitsFile)) ? await fs.readJson(commitsFile) : [];
-  let versions = [];
-  try { versions = await fs.readdir(versionsDir); } catch (e) {}
-  
-  let totalSize = 0;
-  for (const version of versions) {
-    try {
-        const stat = await fs.stat(path.join(versionsDir, version));
-        totalSize += stat.size;
-    } catch(e) {}
-  }
-  
-  return {
-    commitCount: commits.length,
-    totalSize,
-    averageSize: commits.length > 0 ? totalSize / commits.length : 0,
-    firstCommit: commits[0] || null,
-    lastCommit: commits[commits.length - 1] || null
-  };
-}
-
-export async function updateRepoComment(repoId, comment) {
-  const repoDir = await ensureRepoExists(repoId);
-  const metaFile = path.join(repoDir, "meta.json");
-  let meta = {};
-  if (await fs.pathExists(metaFile)) meta = await fs.readJson(metaFile);
-  
-  meta.description = comment;
-  meta.updatedAt = new Date().toISOString();
-  await fs.writeJson(metaFile, meta, { spaces: 2 });
-  return meta;
+  if (!entry) throw new Error('Plik nie istnieje w snapshotcie');
+  return { name: path.basename(filePath), path: filePath, size: entry.header.size, data: entry.getData() };
 }

@@ -7,6 +7,7 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
 const DEFAULT_IGNORES = [
   "node_modules/",
+  ".mygit_backup*/",
   ".git/",
   ".vscode/",
   ".idea/",
@@ -15,10 +16,10 @@ const DEFAULT_IGNORES = [
   "data/",
   "*.log",
   "*.tmp",
-  "*.swp",
-  "mygit",
-  "mygit/",
-  "mygit/*"
+  "*.swp"
+//  "mygit",
+//  "mygit/",
+//  "mygit/*"
 ];
 
 async function loadIgnorePatterns(sourcePath) {
@@ -35,34 +36,40 @@ async function loadIgnorePatterns(sourcePath) {
 }
 
 function shouldIgnore(filePath, sourcePath, patterns) {
-  // Normalizuj ścieżki
   const normalizedFilePath = path.resolve(filePath);
   const normalizedSourcePath = path.resolve(sourcePath);
   
-  // Sprawdź czy plik jest poza sourcePath (może się zdarzyć przy linkach symbolicznych)
-  if (!normalizedFilePath.startsWith(normalizedSourcePath)) {
-    return true;
-  }
+  if (!normalizedFilePath.startsWith(normalizedSourcePath)) return true;
 
+  // FIX: Poprawiony regex zamiany backslashy na slashe
   const rel = path.relative(normalizedSourcePath, normalizedFilePath).replace(/\\/g, "/");
-
-  // Ignoruj puste ścieżki
-  if (!rel) return true;
+  if (!rel) return false;
 
   return patterns.some(pat => {
-    if (pat.endsWith("/")) {
-      const dirPattern = pat.slice(0, -1);
-      return rel === dirPattern || rel.startsWith(dirPattern + "/");
+    let isRootOnly = false;
+    let currentPat = pat;
+    if (pat.startsWith("/")) {
+      isRootOnly = true;
+      currentPat = pat.slice(1);
     }
-    if (pat.includes("*")) {
-      const regex = new RegExp("^" + pat.split("*").map(escapeRegExp).join(".*") + "$");
+
+    const regexPat = currentPat
+      .split('*')
+      .map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('.*');
+    
+    const regex = new RegExp(`^${regexPat}(/.*)?$`);
+
+    if (isRootOnly) {
       return regex.test(rel);
+    } else {
+      return regex.test(rel) || rel.split('/').some(part => new RegExp(`^${regexPat}$`).test(part));
     }
-    return rel === pat;
   });
 }
 
 function escapeRegExp(str) {
+  // Poprawiony backup znaków specjalnych
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
@@ -98,7 +105,7 @@ async function collectFiles(dir, base, patterns, files = []) {
   return files;
 }
 
-// główna funkcja tworzenia snapshotu
+// Główna funkcja tworzenia snapshotu
 export async function commitSnapshot(sourcePath, destVersionsDir, message = "snapshot") {
   console.log(`📁 Source path: ${sourcePath}`);
   console.log(`💾 Destination versions dir: ${destVersionsDir}`);
@@ -153,6 +160,8 @@ export async function commitSnapshot(sourcePath, destVersionsDir, message = "sna
     });
     
     archive.on("error", err => reject(err));
+    
+    // Przywrócona obsługa ostrzeżeń, której brakowało w poprzedniej wersji
     archive.on("warning", err => {
       if (err.code === 'ENOENT') {
         console.log(`⚠️ Ostrzeżenie archiwizacji: ${err.message}`);
@@ -166,6 +175,7 @@ export async function commitSnapshot(sourcePath, destVersionsDir, message = "sna
     // Dodaj pliki do archiwum
     for (const file of allFiles) {
       try {
+        // Poprawna zamiana ukośników dla struktury ZIPa (ważne dla kompatybilności systemów)
         const rel = path.relative(sourcePath, file).replace(/\\/g, "/");
         archive.file(file, { name: rel });
         processed++;

@@ -1,0 +1,6 @@
+{
+  "port": 3350,
+  "dataDir": "./data",
+  "staticWeb": "./web",
+  "maxZipSizeMB": 1024
+}

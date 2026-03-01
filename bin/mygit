@@ -2,7 +2,9 @@
 
 # =============================================================================
 # 🧠 mygit - Klient REST API (Bash)
-# Wersja: 2.2.0 (Pretty UI)
+# Plik znajduje się w /bin/mygit
+# Autor: Paffcio (2025-2026)
+# Wersja: 2.2.1 (Fixed diff + get versions)
 # =============================================================================
 
 # Konfiguracja
@@ -64,16 +66,24 @@ format_bytes() {
     else echo "$(echo "scale=2; $bytes/1048576" | bc) MB"; fi
 }
 
-# Funkcja do ładnego wyświetlania pojedynczego wpisu (używana w log i search)
+# Funkcja do ładnego wyświetlania pojedynczego wpisu
 print_commit_entry() {
     local file="$1"
     local date="$2"
     local msg="$3"
     local size="$4"
 
-    # Czyszczenie daty (z formatu ISO na czytelniejszy: YYYY-MM-DD HH:MM)
-    # Usuwa 'T', usuwa sekundy i milisekundy
-    local clean_date=$(echo "$date" | sed 's/T/ /; s/\..*//' | cut -d: -f1,2)
+    # Wyciągamy poszczególne części daty (zakładając format wejściowy YYYY-MM-DDTHH:MM:SS)
+    local d_part=$(echo "$date" | cut -d'T' -f1)
+    local y=$(echo "$d_part" | cut -d'-' -f1)
+    local m=$(echo "$d_part" | cut -d'-' -f2)
+    local d=$(echo "$d_part" | cut -d'-' -f3)
+    
+    # Wyciągamy godzinę i minuty
+    local t_part=$(echo "$date" | cut -d'T' -f2 | cut -d: -f1,2)
+
+    # Składamy w format DD-MM-YYYY HH:MM
+    local clean_date="${d}-${m}-${y} ${t_part}"
 
     echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
     echo -e "${CYAN}📦 ${file}${NC}"
@@ -95,6 +105,123 @@ cmd_init() {
     log_success "Repozytorium utworzone!"
 }
 
+cmd_category() {
+    local action="$1"
+    shift
+    
+    case "$action" in
+        list)
+            log_info "Dostępne kategorie:"
+            echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+            curl -s "$BACKEND_URL/api/categories" | jq -r '.categories[] | "\(.icon) \(.name)|\(.id)|\(.color)"' | while IFS='|' read -r name id color; do
+                echo -e "${CYAN}$name${NC}"
+                echo -e "   ${DIM}ID: $id | Kolor: $color${NC}"
+            done
+            echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+            ;;
+            
+        set)
+            local input="$1"
+            if [ -z "$input" ]; then
+                log_error "Podaj nazwę lub ID kategorii"
+                exit 1
+            fi
+
+            # Pobierz kategorie
+            local categories=$(curl -s "$BACKEND_URL/api/categories")
+
+            # Znajdź kategorię po ID lub nazwie
+            local category_id=$(echo "$categories" | jq -r --arg val "$input" '
+                .categories[] |
+                select(.id == $val or .name == $val) |
+                .id
+            ' | head -n1)
+
+            if [ -z "$category_id" ] || [ "$category_id" = "null" ]; then
+                log_error "Nie znaleziono kategorii: $input"
+                exit 1
+            fi
+
+            log_info "Ustawianie kategorii '$category_id' dla '$REPO_NAME'..."
+
+            local json=$(jq -n --arg cat "$category_id" '{category: $cat}')
+            local response=$(curl -s -X POST -H "Content-Type: application/json" \
+                -d "$json" \
+                "$BACKEND_URL/api/repos/$REPO_NAME/category")
+
+            if echo "$response" | grep -q "error"; then
+                log_error "Błąd: $(echo "$response" | jq -r '.error')"
+                exit 1
+            fi
+
+            log_success "Kategoria ustawiona na: $category_id"
+            ;;
+            
+        add)
+            local name="$1"
+            local color="${2:-#64748b}"
+            local icon="${3:-📁}"
+            
+            if [ -z "$name" ]; then
+                log_error "Podaj nazwę nowej kategorii"
+                exit 1
+            fi
+            
+            log_info "Dodawanie kategorii '$name'..."
+            local json=$(jq -n --arg name "$name" --arg color "$color" --arg icon "$icon" '{name: $name, color: $color, icon: $icon}')
+            local response=$(curl -s -X POST -H "Content-Type: application/json" -d "$json" "$BACKEND_URL/api/categories")
+            
+            if echo "$response" | grep -q "error"; then
+                log_error "Błąd: $(echo "$response" | jq -r '.error')"
+                exit 1
+            fi
+            
+            log_success "Dodano kategorię: $name"
+            ;;
+            
+        delete|remove|rm)
+            local id="$1"
+            if [ -z "$id" ]; then
+                log_error "Podaj ID lub nazwę kategorii do usunięcia"
+                exit 1
+            fi
+
+            echo -e "${RED}Czy na pewno usunąć kategorię '$id'?${NC}"
+            read -p "Wpisz TAK aby potwierdzić: " confirm
+
+            if [ "$confirm" != "TAK" ]; then
+                log_info "Anulowano"
+                exit 0
+            fi
+
+            response=$(curl -s -X DELETE "$BACKEND_URL/api/categories/$id")
+
+            if echo "$response" | grep -q "error"; then
+                log_error "$(echo "$response" | jq -r '.error')"
+                exit 1
+            fi
+
+            log_success "Kategoria została usunięta"
+            ;;
+
+        *)
+            echo -e "${YELLOW}Użycie: mygit category <akcja>${NC}"
+            echo ""
+            echo "Akcje:"
+            echo "  list              - wyświetl wszystkie kategorie"
+            echo "  set <nazwa>       - ustaw kategorię dla bieżącego repo"
+            echo "  add <nazwa> [kolor] [ikona] - dodaj nową kategorię"
+            echo "  delete <id>       - usuń kategorię"
+            echo ""
+            echo "Przykłady:"
+            echo "  mygit category list"
+            echo "  mygit category set Web"
+            echo "  mygit category add \"Moje Projekty\" \"#ff6b6b\" \"🚀\""
+            exit 1
+            ;;
+    esac
+}
+
 cmd_save() {
     local msg="${1:-snapshot}"
     log_info "Przygotowywanie snapshotu dla '$REPO_NAME'..."
@@ -104,7 +231,7 @@ cmd_save() {
         exit 1
     fi
 
-    local exclude_args="-x \"*.git*\" \"node_modules/*\""
+    local exclude_args="-x \"*.git*\" \"node_modules/*\" \".mygit_backup_*/*\""
     if [ -f ".mygitignore" ]; then
         while IFS= read -r pattern || [ -n "$pattern" ]; do
             pattern=$(echo "$pattern" | sed 's/#.*$//' | tr -d '[:space:]')
@@ -149,13 +276,14 @@ cmd_list() {
 cmd_log() {
     log_info "Historia snapshotów dla '$REPO_NAME':"
     local response=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/history")
+    
     if echo "$response" | grep -q "error"; then
         echo "Brak historii lub repozytorium nie istnieje."
         return
     fi
     
-    # Używamy jq do sformatowania danych w jedną linię oddzieloną pipe'ami, a potem czytamy w pętli
-    echo "$response" | jq -r '.[] | "\(.file)|\(.date)|\(.message)|\(.size)"' | head -n 15 | while IFS='|' read -r file date msg size; do
+    # Pobieramy 15 najnowszych, ale odwracamy kolejność przed wyświetleniem
+    echo "$response" | jq -r '.[0:15] | reverse | .[] | "\(.file)|\(.date)|\(.message)|\(.size)"' | while IFS='|' read -r file date msg size; do
         print_commit_entry "$file" "$date" "$msg" "$size"
     done
     echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
@@ -196,25 +324,97 @@ cmd_delete() {
     log_success "Usunięto snapshot $target"
 }
 
+cmd_restore() {
+    local target_path="$1"
+    if [ -z "$target_path" ]; then
+        log_error "Użycie: mygit restore /ścieżka/do/pliku_lub_folderu"
+        exit 1
+    fi
+
+    # 1. Warunek nazwy folderu (musi być zgodna z ID repozytorium)
+    local current_dir_name=$(basename "$PWD")
+    if [ "$current_dir_name" != "$REPO_NAME" ]; then
+        log_error "Odmowa: Nazwa folderu ($current_dir_name) nie zgadza się z ID projektu ($REPO_NAME)."
+        log_info "Restore można wywołać tylko w głównym katalogu projektu."
+        exit 1
+    fi
+
+    # Normalizacja ścieżki (usuwamy prowadzący slash dla API)
+    local clean_path=$(echo "$target_path" | sed 's/^\///')
+    log_info "Przywracanie: $target_path z ostatniego snapshotu..."
+
+    # 2. Wywołanie API
+    local tmp_file=$(mktemp)
+    local http_code=$(curl -s -w "%{http_code}" -o "$tmp_file" "$BACKEND_URL/api/repos/$REPO_NAME/restore-path?path=$clean_path")
+
+    if [ "$http_code" != "200" ]; then
+        local err_msg=$(cat "$tmp_file" | jq -r '.error // "Nieznany błąd"')
+        log_error "Błąd serwera ($http_code): $err_msg"
+        rm -f "$tmp_file"
+        exit 1
+    fi
+
+    # 3. Rozpoznanie czy to ZIP (folder) czy zwykły plik
+    local mime=$(file -b --mime-type "$tmp_file")
+
+    if [ "$mime" == "application/zip" ]; then
+        log_info "Wykryto folder, rozpakowywanie..."
+        unzip -o -q "$tmp_file" -d .
+        log_success "Folder $target_path został przywrócony."
+    else
+        # To pojedynczy plik - musimy upewnić się, że folder docelowy istnieje
+        mkdir -p "$(dirname "$clean_path")"
+        mv "$tmp_file" "$clean_path"
+        log_success "Plik $target_path został przywrócony."
+    fi
+
+    rm -f "$tmp_file"
+}
+
 cmd_get() {
     local target="$1"
     local force=0
+    
     # Obsługa flag (np. -f)
-    if [[ "$1" == "-f" ]] || [[ "$1" == "--force" ]]; then force=1; shift; target="$1"; fi
-    if [[ "$2" == "-f" ]] || [[ "$2" == "--force" ]]; then force=1; fi
+    while [[ "$1" == -* ]]; do
+        case "$1" in
+            -f|--force) force=1; shift ;;
+            *) log_error "Nieznana flaga: $1"; exit 1 ;;
+        esac
+    done
+    
+    target="$1"
 
     local fetch_repo="$REPO_NAME"
     local fetch_file=""
     
-    # Parsowanie targetu (repo@plik lub samo repo)
+    # Parsowanie targetu:
+    # 1. repo@snap.zip - konkretna wersja z konkretnego repo
+    # 2. snap.zip - konkretna wersja z bieżącego repo
+    # 3. repo - najnowsza wersja z podanego repo
+    # 4. brak - najnowsza wersja z bieżącego repo
+    
     if [[ "$target" == *@* ]]; then
+        # Format: repo@snap.zip
         fetch_repo="${target%@*}"
         fetch_file="${target#*@}"
-    elif [ -n "$target" ] && [[ "$target" != -* ]]; then
-        fetch_repo="$target"
+    elif [ -n "$target" ]; then
+        # Sprawdź czy to plik ZIP (konkretna wersja) czy nazwa repo
+        if [[ "$target" == *.zip ]]; then
+            # To konkretna wersja z bieżącego repo
+            fetch_file="$target"
+        else
+            # To nazwa repo (pobierz najnowszy)
+            fetch_repo="$target"
+        fi
     fi
 
-    log_info "Pobieranie z $fetch_repo..."
+    if [ -n "$fetch_file" ]; then
+        log_info "Pobieranie snapshotu $fetch_file z $fetch_repo..."
+    else
+        log_info "Pobieranie najnowszego snapshotu z $fetch_repo..."
+    fi
+    
     local url
     if [ -n "$fetch_file" ]; then
         url="$BACKEND_URL/api/repos/$fetch_repo/snapshot/$fetch_file"
@@ -232,10 +432,26 @@ cmd_get() {
     local zip_size=$(echo "$info" | jq -r '.size')
     
     log_info "Znaleziono: $zip_name ($(format_bytes $zip_size))"
+
+    # --- POTWIERDZENIE ---
+    if [ $force -eq 0 ]; then
+        echo -e "\n${YELLOW}${BOLD}⚠️  UWAGA!${NC}"
+        echo -e "Zaraz pobierzesz dane które ${RED}${BOLD}NADPISZĄ${NC} Twoje lokalne pliki w tym folderze."
+        echo -e "Jeśli pliki istnieją lokalnie to zostanie utworzona ich kopia zapasowa przed nadpisaniem."
+        echo -e "Wpisz ${GREEN}${BOLD}TAK${NC} aby kontynuować lub ${RED}${BOLD}NIE${NC} aby przerwać."
+        
+        read -r -p "Twoja decyzja: " confirmation < /dev/tty
+        
+        if [ "$confirmation" != "TAK" ]; then
+            log_info "Anulowano. Nic nie zostało zrobione."
+            exit 0
+        fi
+        echo "" 
+    fi
+    # ------------------------------
     
     # 2. Pobranie pliku ZIP
     local tmp_zip=$(mktemp)
-    # curl -# wyświetla prosty pasek postępu
     curl -# -o "$tmp_zip" "$BACKEND_URL/api/repos/$fetch_repo/download/$zip_name"
     
     # 3. Backup (jeśli nie użyto --force)
@@ -243,17 +459,13 @@ cmd_get() {
         local timestamp=$(date +%Y%m%d_%H%M%S)
         local backup_dir=".mygit_backup_$timestamp"
         
-        # Sprawdzamy czy są jakiekolwiek pliki do backupu (pomijając .git, node_modules i sam backup)
         if [ "$(ls -A . 2>/dev/null)" ]; then
             log_warning "Robienie szybkiego backupu do: $backup_dir..."
             mkdir -p "$backup_dir"
             
-            # Kopiujemy wszystko oprócz katalogów backupu i tmp (prosty rsync lub cp)
-            # Używamy rsync jeśli jest (szybszy), lub cp
             if command -v rsync >/dev/null 2>&1; then
                 rsync -a --exclude=".mygit_backup_*" --exclude="node_modules" --exclude=".git" . "$backup_dir"
             else
-                # Fallback dla cp (mniej precyzyjny przy exclude, ale działa)
                 cp -r * "$backup_dir" 2>/dev/null || true
             fi
         fi
@@ -262,16 +474,16 @@ cmd_get() {
     # 4. Rozpakowanie
     log_info "📦 Rozpakowywanie..."
     
-    # Flaga -o (overwrite) wymusza nadpisanie bez pytań
-    # Flaga -q (quiet) wycisza listę plików
+    # Rozpakowujemy pliki
     unzip -o -q "$tmp_zip" -d .
-    
     rm "$tmp_zip"
     
-    if [ $force -eq 0 ] && [ -d "$backup_dir" ]; then
-        log_success "Pobrano snapshot. Backup zmian lokalnych: $backup_dir"
+    # Sprawdzamy czy folder backupu fizycznie istnieje na dysku
+    if [ -n "$backup_dir" ] && [ -d "$backup_dir" ]; then
+        log_success "Pobrano snapshot pomyślnie."
+        echo -e "   ${BLUE}📂 Twoja kopia bezpieczeństwa jest tutaj:${NC} ${BOLD}$backup_dir${NC}"
     else
-        log_success "Pobrano i nadpisano pliki."
+        log_success "Pobrano i nadpisano pliki (kopia nie była wymagana lub została pominięta)."
     fi
 }
 
@@ -297,30 +509,175 @@ cmd_delete_repo() {
 cmd_diff() {
     local target="$1"
     
-    if [ -z "$target" ]; then
-         local info=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/latest")
-         target=$(echo "$info" | jq -r '.file')
-         if [ "$target" == "null" ]; then
-            log_error "Brak snapshotów do porównania."
-            exit 1
-         fi
+    # Jeśli podano argument -> Porównanie historyczne
+    if [ -n "$target" ]; then
+        log_info "Pobieranie diff dla snapshotu: $target (vs poprzedni)"
+        local json=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/diff/$target")
+        
+        if echo "$json" | grep -q "error"; then
+            log_error "Błąd diff: $(echo "$json" | jq -r '.error')"
+            return
+        fi
+        
+        echo -e "\n${CYAN}--- Zmiany w $target ---${NC}"
+        echo "$json" | jq -r '.added[]' 2>/dev/null | while read line; do echo -e "${GREEN}[+] $line${NC}"; done
+        echo "$json" | jq -r '.removed[]' 2>/dev/null | while read line; do echo -e "${RED}[-] $line${NC}"; done
+        echo "$json" | jq -r '.modified[]' 2>/dev/null | while read line; do echo -e "${YELLOW}[~] $line${NC}"; done
+        
+        local stats=$(echo "$json" | jq -r '.stats')
+        echo -e "\n${MAGENTA}Statystyki:${NC} $(echo $stats | jq -r '"+\(.added)  -\(.removed)  ~\(.modified)"')"
+        return
     fi
 
-    log_info "Pobieranie diff dla: $target (vs poprzedni)"
-    local json=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/diff/$target")
+    # === NAPRAWA: Analiza lokalna (Dysk vs FAKTYCZNIE Ostatni Snapshot) ===
+    log_info "Analizowanie zmian na dysku (uwzględniając .mygitignore)..."
     
-    if echo "$json" | grep -q "error"; then
-        log_error "Błąd diff: $(echo "$json" | jq -r '.error')"
-        exit 1
+    # POPRAWKA: Pobieramy historię i bierzemy pierwszy element (najnowszy)
+    local history=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/history")
+    local latest_snap=$(echo "$history" | jq -r '.[0].file // empty')
+    
+    if [ -z "$latest_snap" ] || [ "$latest_snap" == "null" ]; then
+        log_error "Brak snapshotów na serwerze do porównania. Zrób najpierw 'mygit save'."
+        return
     fi
     
-    echo -e "\n${CYAN}--- Zmiany w $target ---${NC}"
-    echo "$json" | jq -r '.added[]' | while read line; do echo -e "${GREEN}[+] $line${NC}"; done
-    echo "$json" | jq -r '.removed[]' | while read line; do echo -e "${RED}[-] $line${NC}"; done
-    echo "$json" | jq -r '.modified[]' | while read line; do echo -e "${YELLOW}[~] $line${NC}"; done
+    log_info "Porównuję z: $latest_snap"
+
+    # Używamy Heredoc, żeby uniknąć problemów z ukośnikami w Bashu
+    local local_json=$(node << 'EOF'
+const fs = require('fs');
+const crypto = require('crypto');
+const path = require('path');
+
+const map = {};
+let ignorePatterns = ['.git', 'node_modules', 'data/', '.env', '.DS_Store', 'Thumbs.db', 'dist/', 'build/', '.mygit_backup_*', '*.log'];
+
+// Załaduj wzorce z .mygitignore
+if (fs.existsSync('.mygitignore')) {
+    const content = fs.readFileSync('.mygitignore', 'utf8');
+    const lines = content.split('\n')
+        .map(l => l.trim())
+        .filter(l => l && !l.startsWith('#'));
+    ignorePatterns = [...new Set([...ignorePatterns, ...lines])];
+}
+
+// Uproszczone sprawdzanie ignorowania
+function shouldIgnore(name, relPath) {
+    return ignorePatterns.some(pat => {
+        // Zamiana wzorca z gwiazdką na wyrażenie regularne
+        const regexPat = pat
+            .replace(/\/$/, '') // usuń końcowy slash
+            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // eskejpuj znaki specjalne
+            .replace(/\\\*/g, '.*'); // zamień uratowaną gwiazdkę na .* (dowolny ciąg)
+        
+        const regex = new RegExp(`^${regexPat}(/.*)?$`);
+        
+        // Sprawdzamy czy ścieżka pasuje do wzorca lub czy wzorzec występuje w nazwie pliku
+        return regex.test(relPath) || regex.test(name);
+    });
+}
+
+function walk(dir) {
+    const items = fs.readdirSync(dir);
+    for (const item of items) {
+        const full = path.join(dir, item);
+        const rel = path.relative('.', full).replace(/\\/g, '/');
+        
+        if (shouldIgnore(item, rel)) continue;
+
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+            walk(full);
+        } else {
+            const content = fs.readFileSync(full);
+            const hash = crypto.createHash('sha1').update(content).digest('hex');
+            map[rel] = hash;
+        }
+    }
+}
+
+try {
+    walk('.');
+    console.log(JSON.stringify(map));
+} catch (e) {
+    process.exit(1);
+}
+EOF
+)
+
+    if [ -z "$local_json" ]; then
+        log_error "Błąd podczas skanowania plików lokalnych."
+        return
+    fi
+
+    # Wysyłamy mapę do serwera
+    local response=$(curl -s -X POST -H "Content-Type: application/json" \
+        -d "$local_json" \
+        "$BACKEND_URL/api/repos/$REPO_NAME/diff-local")
+
+    if echo "$response" | grep -q "error"; then
+        log_error "Błąd serwera: $(echo "$response" | jq -r '.error')"
+        return
+    fi
+
+    echo -e "\n${CYAN}--- Zmiany lokalne względem $latest_snap ---${NC}"
     
-    local stats=$(echo "$json" | jq -r '.stats')
-    echo -e "\n${MAGENTA}Statystyki:${NC} $(echo $stats | jq -r '"+\(.added)  -\(.removed)  ~\(.modified)"')"
+    local added_count=$(echo "$response" | jq '.added | length')
+    local removed_count=$(echo "$response" | jq '.removed | length')
+    local modified_count=$(echo "$response" | jq '.modified | length')
+
+    if [ "$added_count" -eq 0 ] && [ "$removed_count" -eq 0 ] && [ "$modified_count" -eq 0 ]; then
+        echo -e "${GREEN}✅ Brak zmian - lokalny katalog jest identyczny z ostatnim snapshotem.${NC}"
+    else
+        echo "$response" | jq -r '.added[]' 2>/dev/null | while read line; do echo -e "${GREEN}[+] $line${NC}"; done
+        echo "$response" | jq -r '.removed[]' 2>/dev/null | while read line; do echo -e "${RED}[-] $line${NC}"; done
+        echo "$response" | jq -r '.modified[]' 2>/dev/null | while read line; do echo -e "${YELLOW}[~] $line${NC}"; done
+    fi
+    
+    echo -e "\n${MAGENTA}Statystyki:${NC} +$added_count  -$removed_count  ~$modified_count"
+}
+
+# --- NOWA FUNKCJA POMOCY ---
+cmd_usage() {
+    echo -e "${MAGENTA}${BOLD}🧠 mygit v2.2.1${NC}"
+    echo -e "${DIM}Lokalny system wersjonowania od Paffcia${NC}"
+    echo -e "\n${BOLD}Użycie:${NC}"
+    echo -e "  mygit <komenda> [argumenty]"
+    
+    echo -e "\n${YELLOW}${BOLD}📂 PODSTAWOWE I CYKL PRACY${NC}"
+    echo -e "  ${CYAN}init [opis]${NC}          Inicjalizuje nowe repozytorium"
+    echo -e "  ${CYAN}save [msg]${NC}           Tworzy i wysyła snapshot ${DIM}(alias: push)${NC}"
+    echo -e "  ${CYAN}get [repo] [snap.zip]${NC} Pobiera snapshot ${DIM}(najnowszy lub konkretny)${NC}"
+    echo -e "  ${CYAN}status${NC}               Pokazuje szczegółowe statystyki projektu"
+    echo -e "  ${CYAN}log${NC}                  Wyświetla historię snapshotów ${DIM}(alias: history, info)${NC}"
+    echo -e "  ${CYAN}list${NC}                 Lista wszystkich dostępnych repozytoriów"
+    echo -e "  ${CYAN}comment \"tekst\"${NC}      Aktualizuje opis repozytorium"
+
+    echo -e "\n${BLUE}${BOLD}🔍 NARZĘDZIA I ANALIZA${NC}"
+    echo -e "  ${CYAN}diff${NC}                 Status lokalny: co się zmieniło na dysku"
+    echo -e "  ${CYAN}diff [snap]${NC}          Porównuje wybrany snapshot z poprzednim"
+    echo -e "  ${CYAN}search \"fraza\"${NC}       Przeszukuje opisy w historii"
+    echo -e "  ${CYAN}restore <path>${NC}       Przywraca plik/folder z ostatniej wersji"
+    echo -e "  ${CYAN}cat <snap> <path>${NC}    Podgląd treści pliku bez pobierania całości"
+
+    echo -e "\n${GREEN}${BOLD}📁 KATEGORIE${NC}"
+    echo -e "  ${CYAN}category list${NC}        Lista dostępnych kategorii"
+    echo -e "  ${CYAN}category set <nazwa>${NC} Ustaw kategorię dla repo"
+    echo -e "  ${CYAN}category add <nazwa>${NC} Dodaj nową kategorię"
+    echo -e "  ${CYAN}category delete <id>${NC} Usuń kategorię"
+
+    echo -e "\n${WHITE}${BOLD}⚙️  KONFIGURACJA I ADMINISTRACJA${NC}"
+    echo -e "  ${CYAN}config [k] [v]${NC}       Zarządzanie ustawieniami"
+    echo -e "  ${RED}delete <file>${NC}        Usuwa pojedynczy snapshot z historii"
+    echo -e "  ${RED}${BOLD}delete-repo${NC}          Trwale usuwa CAŁE repozytorium z serwera"
+
+    echo -e "\n${DIM}Przykłady:${NC}"
+    echo -e "  ${DIM}mygit save \"Naprawiono logowanie\"${NC}"
+    echo -e "  ${DIM}mygit get                          ${NC}${GREEN}# pobierz najnowszy snapshot${NC}"
+    echo -e "  ${DIM}mygit get 2026-01-23_14-51-49.zip  ${NC}${GREEN}# pobierz konkretną wersję${NC}"
+    echo -e "  ${DIM}mygit get omnicore                 ${NC}${GREEN}# pobierz najnowszy z innego repo${NC}"
+    echo -e "  ${DIM}mygit get omnicore@2026-01-23.zip  ${NC}${GREEN}# konkretna wersja z innego repo${NC}"
+    echo -e "${DIM}WWW: http://localhost:3350${NC}"
 }
 
 cmd_cat() {
@@ -370,9 +727,7 @@ cmd_search() {
     echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
 }
 
-
-# --- MAIN ---
-
+# --- GŁÓWNA OBSŁUGA ---
 check_deps
 load_config
 
@@ -385,32 +740,16 @@ case "$COMMAND" in
     get|pull)    cmd_get "$@" ;;
     list|repos)  cmd_list ;;
     status)      cmd_status ;;
-    log|history) cmd_log ;;
+    log|history|info) cmd_log ;;
     comment)     cmd_comment "$*" ;;
     delete)      cmd_delete "$1" ;;
     delete-repo) cmd_delete_repo ;;
     diff)        cmd_diff "$1" ;;
     cat)         cmd_cat "$1" "$2" ;;
     config)      cmd_config "$1" "$2" ;;
+    restore)     cmd_restore "$1" ;;
     search)      cmd_search "$1" ;;
-    
-    *)
-        echo -e "${MAGENTA}🧠 mygit v2.2 (Pretty UI)${NC}"
-        echo "Użycie: mygit <komenda>"
-        echo "------------------------------------------------"
-        echo "  init [opis]        - Utwórz repozytorium"
-        echo "  save [msg]         - Wyślij snapshot"
-        echo "  get [repo]         - Pobierz snapshot"
-        echo "  status             - Status obecnego repo"
-        echo "  log                - Historia zmian"
-        echo "------------------------------------------------"
-        echo -e "${CYAN}  diff [snap]        - Pokaż zmiany w snapshocie${NC}"
-        echo -e "${CYAN}  cat <snap> <plik>  - Pokaż zawartość pliku z historii${NC}"
-        echo -e "${CYAN}  search \"fraza\"     - Szukaj w opisach${NC}"
-        echo -e "${CYAN}  config [key val]   - Zarządzaj ustawieniami${NC}"
-        echo "------------------------------------------------"
-        echo -e "${RED}  delete <file>      - Usuń jeden snapshot${NC}"
-        echo -e "${RED}  delete-repo        - Usuń CAŁE repozytorium${NC}"
-        exit 1
-        ;;
+    category)    cmd_category "$@" ;;
+    help|--help|-h) cmd_usage ;; 
+    *)           cmd_usage; exit 1 ;;
 esac
