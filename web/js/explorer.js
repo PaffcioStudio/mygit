@@ -1,9 +1,17 @@
 // explorer.js — Przeglądarka plików
 import { state } from './state.js';
-import { fetchJson, escapeHtml, escapeJS, humanSize, fmtDate, snapHash, snapMessage, snapDate, snapDateFull } from './utils.js';
+import { fetchJson, escapeHtml, escapeJS, humanSize, fmtDate, fmtDateFull, snapHash, snapMessage, snapDate, snapDateFull } from './utils.js';
 import { getFileIcon, getExtLang } from './fileicons.js';
 import { renderNotesPanel } from './notes.js';
 import { toast } from './toast.js';
+
+// Pobiera opis snapshotu — najpierw z bazy (state.snapshotMessages), potem z nazwy pliku
+function getSnapMsg(file) {
+  if (!file) return '';
+  const fromDb = state.snapshotMessages?.[file];
+  if (fromDb !== undefined && fromDb !== null) return fromDb;
+  return snapMessage(file);
+}
 
 // ── Markdown renderer ──────────────────────────────────────────────────────
 function renderMarkdown(container, content) {
@@ -35,7 +43,7 @@ function renderMarkdown(container, content) {
 export function renderSnapshotPicker(snapshots, current) {
   const btn = document.getElementById('snapshotBtn');
   if (!btn) return;
-  const msg = current ? (snapMessage(current) || snapHash(current)) : 'Wybierz snapshot';
+  const msg = current ? (getSnapMsg(current) || snapHash(current)) : 'Wybierz snapshot';
   btn.innerHTML = `
     <svg class="snap-icon" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="3"/><path d="M3 12a9 9 0 1 1 18 0 9 9 0 0 1-18 0" opacity=".3"/>
@@ -62,7 +70,7 @@ export function filterSnaps(q) {
   const list = document.getElementById('snapDdList');
   if (!list) return;
   const filtered = q
-    ? state.snapshots.filter(s => snapMessage(s).toLowerCase().includes(q.toLowerCase()) || s.includes(q))
+    ? state.snapshots.filter(s => getSnapMsg(s).toLowerCase().includes(q.toLowerCase()) || s.includes(q))
     : state.snapshots;
   renderSnapList(list, filtered);
 }
@@ -75,8 +83,8 @@ function renderSnapList(container, snaps) {
   container.innerHTML = snaps.map((s, i) => `
     <div class="snap-dd-item ${s === state.currentSnapshot ? 'active' : ''}" onclick="selectSnapshot('${escapeJS(s)}')">
       <div class="snap-dd-msg">
-        ${escapeHtml(snapMessage(s) || s)}
-        ${i === 0 ? `<span class="snap-dd-latest">latest</span>` : ''}
+        ${escapeHtml(getSnapMsg(s) || s)}
+        ${i === 0 ? `<span class="snap-dd-latest">najnowszy</span>` : ''}
       </div>
       <div class="snap-dd-date">${snapDateFull(s) || s}</div>
     </div>`).join('');
@@ -102,6 +110,8 @@ export async function openRepo(repo) {
   try {
     const hist = await fetchJson(`/api/repos/${repo.id}/history`);
     state.snapshots = Array.isArray(hist) ? hist.map(c => c.file).filter(Boolean) : [];
+    state.snapshotMessages = {};
+    if (Array.isArray(hist)) hist.forEach(c => { if (c.file) state.snapshotMessages[c.file] = c.message || ''; });
     state.currentSnapshot = state.snapshots[0] || null;
   } catch {
     state.snapshots = [];
@@ -199,6 +209,9 @@ function formatCat(raw) {
 // ── Przeglądarka plików ────────────────────────────────────────────────────
 export async function loadDirectory(dirPath) {
   state.currentPath = dirPath || '';
+  // Reset sortowania przy każdej zmianie katalogu
+  _sortState.col = 'name';
+  _sortState.dir = 1;
   const repo = state.currentRepo;
   if (!repo || !state.currentSnapshot) return;
 
@@ -214,19 +227,33 @@ export async function loadDirectory(dirPath) {
 
   if (commitBar) {
     const hash = snapHash(state.currentSnapshot);
-    const msg  = snapMessage(state.currentSnapshot);
+    const msg  = getSnapMsg(state.currentSnapshot);
     const date = snapDateFull(state.currentSnapshot);
     commitBar.innerHTML = `
       <span class="commit-hash">${hash}</span>
-      <span class="commit-msg">${escapeHtml(msg)}</span>
+      <span class="commit-msg">${msg ? escapeHtml(msg) : '<span style="color:var(--text-muted);font-style:italic">(brak opisu)</span>'}</span>
       <span class="commit-date">${date}</span>
-      <a href="/api/repos/${repo.id}/download/${encodeURIComponent(state.currentSnapshot)}"
-         class="btn btn-sm" style="margin-left:auto">
-        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-        </svg> .zip
-      </a>`;
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+        <button class="btn btn-sm" title="Kopiuj ID snapshotu" onclick="window.copySnapId('${escapeJS(state.currentSnapshot)}')">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+          ID
+        </button>
+        <button class="btn btn-sm btn-danger" title="Usuń snapshot" onclick="window.confirmDeleteSnapshot('${escapeJS(state.currentSnapshot)}')">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+          </svg>
+          Usuń
+        </button>
+        <a href="/api/repos/${repo.id}/download/${encodeURIComponent(state.currentSnapshot)}"
+           class="btn btn-sm">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg> .zip
+        </a>
+      </div>`;
   }
 
   if (breadcrumb) renderBreadcrumb(breadcrumb, dirPath);
@@ -257,10 +284,41 @@ function renderBreadcrumb(el, dirPath) {
       html += `<span class="breadcrumb-seg" onclick="loadDirectory('${escapeJS(a)}')">${escapeHtml(p)}</span>`;
     }
   });
+  // Przycisk wyszukiwarki po prawej
+  html += `<span style="margin-left:auto">
+    <button class="breadcrumb-search-btn" onclick="window.openFileSearch()" title="Szukaj pliku (Ctrl+F)">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      Szukaj
+    </button>
+  </span>`;
   el.innerHTML = html;
 }
 
+// Stan sortowania — lokalny dla aktualnie wyświetlanego folderu
+const _sortState = { col: 'name', dir: 1 }; // dir: 1=asc, -1=desc
+
+window._sortBy = function(col) {
+  if (_sortState.col === col) {
+    _sortState.dir *= -1;
+  } else {
+    _sortState.col = col;
+    // Rozmiar i data — domyślnie od największego; nazwa — A→Z
+    _sortState.dir = (col === 'name') ? 1 : -1;
+  }
+  // Re-render aktualnej zawartości
+  const ft = document.getElementById('fileTable');
+  if (ft && ft._lastFiles !== undefined) {
+    renderFileTable(ft, ft._lastFiles, ft._lastPath);
+  }
+};
+
 function renderFileTable(container, files, currentPath) {
+  // Zapamiętaj do re-renderu przy zmianie sortowania
+  container._lastFiles = files;
+  container._lastPath  = currentPath;
+
   if (!files.length) {
     container.innerHTML = `<div class="empty-state">
       <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -271,11 +329,26 @@ function renderFileTable(container, files, currentPath) {
     return;
   }
 
+  // Sortowanie — foldery zawsze na górze
   const sorted = [...files].sort((a, b) => {
     if (a.type === 'dir' && b.type !== 'dir') return -1;
     if (a.type !== 'dir' && b.type === 'dir') return 1;
-    return a.name.localeCompare(b.name);
+    const { col, dir } = _sortState;
+    if (col === 'name')     return dir * a.name.localeCompare(b.name);
+    if (col === 'size')     return dir * ((a.size || 0) - (b.size || 0));
+    if (col === 'modified') {
+      const ta = a.modified ? new Date(a.modified).getTime() : 0;
+      const tb = b.modified ? new Date(b.modified).getTime() : 0;
+      return dir * (ta - tb);
+    }
+    return 0;
   });
+
+  // Strzałka kierunku
+  const arrow = (col) => {
+    if (_sortState.col !== col) return `<span class="sort-arrow sort-arrow--inactive">↕</span>`;
+    return `<span class="sort-arrow sort-arrow--active">${_sortState.dir === 1 ? '↑' : '↓'}</span>`;
+  };
 
   let backRow = '';
   if (currentPath) {
@@ -304,16 +377,16 @@ function renderFileTable(container, files, currentPath) {
         <div class="file-icon-cell">${icon}</div>
         <div class="file-name-cell"><span class="file-name-text">${escapeHtml(f.name)}</span></div>
         <div class="file-size-cell">${f.size ? humanSize(f.size) : (isDir ? '—' : '')}</div>
-        <div class="file-date-cell">${f.modified ? fmtDate(new Date(f.modified)) : ''}</div>
+        <div class="file-date-cell">${f.modified ? fmtDateFull(new Date(f.modified)) : ''}</div>
       </div>`;
   });
 
   container.innerHTML = `
     <div class="file-table-head">
       <div class="file-th"></div>
-      <div class="file-th">Nazwa</div>
-      <div class="file-th">Rozmiar</div>
-      <div class="file-th" style="text-align:right">Data</div>
+      <div class="file-th file-th--sort" onclick="_sortBy('name')">Nazwa ${arrow('name')}</div>
+      <div class="file-th file-th--sort" onclick="_sortBy('size')">Rozmiar ${arrow('size')}</div>
+      <div class="file-th file-th--sort" onclick="_sortBy('modified')" style="text-align:right">Zmodyfikowane ${arrow('modified')}</div>
     </div>
     ${backRow}${rows.join('')}`;
 }
@@ -582,4 +655,197 @@ window.copyRepoName = async function(name) {
     document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
     toast(`Skopiowano: ${name}`, 'success');
   }
+};
+
+window.copySnapId = async function(filename) {
+  const id = filename || state.currentSnapshot;
+  if (!id) return;
+  try {
+    await navigator.clipboard.writeText(id);
+    toast(`Skopiowano ID snapshotu`, 'success');
+  } catch {
+    const ta = Object.assign(document.createElement('textarea'), { value: id });
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    toast(`Skopiowano ID snapshotu`, 'success');
+  }
+};
+
+window.confirmDeleteSnapshot = function(filename) {
+  const snapFile = filename || state.currentSnapshot;
+  if (!snapFile || !state.currentRepo) return;
+
+  const modal = document.getElementById('confirmModal');
+  const title = document.getElementById('confirmTitle');
+  const body  = document.getElementById('confirmBody');
+  const okBtn = document.getElementById('confirmOk');
+  if (!modal) return;
+
+  const msg  = getSnapMsg(snapFile);
+  const date = snapDateFull(snapFile);
+  const label = msg ? `„${msg}"` : `snapshot z ${date}`;
+
+  if (title) title.textContent = `Usuń ${label}?`;
+  if (body) body.innerHTML = `
+    <div class="danger-icon">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+    <p style="text-align:center;font-size:13px;color:var(--text-secondary);margin-bottom:6px">
+      Snapshot <strong style="color:var(--text-primary)">${escapeHtml(msg || date)}</strong> zostanie trwale usunięty.
+    </p>
+    <p style="text-align:center;font-size:12px;color:var(--text-muted)">
+      Tej operacji nie można cofnąć.
+    </p>`;
+
+  if (okBtn) {
+    okBtn.className = 'btn btn-danger';
+    okBtn.textContent = 'Usuń snapshot';
+    okBtn.onclick = async () => {
+      closeConfirmModal();
+      try {
+        await fetchJson(`/api/repos/${state.currentRepo.id}/commit/${encodeURIComponent(snapFile)}`, { method: 'DELETE' });
+        toast('Snapshot usunięty', 'success');
+        // Odśwież cały widok repo
+        await openRepo(state.currentRepo);
+      } catch (e) {
+        toast(`Błąd: ${e.message}`, 'error');
+      }
+    };
+  }
+
+  modal.classList.add('open');
+};
+
+// ── Wyszukiwarka plików (2.6) ──────────────────────────────────────────────
+
+let _searchQuery = '';
+
+function _getSearchBar()  { return document.getElementById('fileSearchBar'); }
+function _getSearchInput(){ return document.getElementById('fileSearchInput'); }
+function _getSearchCount(){ return document.getElementById('fileSearchCount'); }
+
+window.openFileSearch = function() {
+  const bar = _getSearchBar();
+  const inp = _getSearchInput();
+  if (!bar || !inp) return;
+  bar.classList.remove('file-search-bar--hidden');
+  inp.focus();
+  inp.select();
+};
+
+window.closeFileSearch = function() {
+  const bar = _getSearchBar();
+  const inp = _getSearchInput();
+  if (!bar || !inp) return;
+  bar.classList.add('file-search-bar--hidden');
+  inp.value = '';
+  _searchQuery = '';
+  _applyFileSearch('');
+};
+
+window._onFileSearchInput = function(q) {
+  _searchQuery = q;
+  _applyFileSearch(q);
+};
+
+function _applyFileSearch(q) {
+  const ft = document.getElementById('fileTable');
+  const countEl = _getSearchCount();
+  if (!ft) return;
+
+  const rows = ft.querySelectorAll('.file-row');
+  let visible = 0;
+  const ql = q.toLowerCase();
+
+  rows.forEach(row => {
+    const nameEl = row.querySelector('.file-name-text');
+    if (!nameEl) return; // wiersz ".." lub nagłówek
+
+    const raw = nameEl.dataset.rawName || nameEl.textContent;
+    nameEl.dataset.rawName = raw; // zapamiętaj oryginalną nazwę
+
+    if (!q) {
+      nameEl.innerHTML = escapeHtml(raw);
+      row.style.display = '';
+      visible++;
+      return;
+    }
+
+    const idx = raw.toLowerCase().indexOf(ql);
+    if (idx === -1) {
+      row.style.display = 'none';
+    } else {
+      // Podświetl pasujący fragment
+      const before = escapeHtml(raw.slice(0, idx));
+      const match  = escapeHtml(raw.slice(idx, idx + q.length));
+      const after  = escapeHtml(raw.slice(idx + q.length));
+      nameEl.innerHTML = `${before}<mark class="file-search-highlight">${match}</mark>${after}`;
+      row.style.display = '';
+      visible++;
+    }
+  });
+
+  // Pokaż licznik wyników (tylko gdy wyszukiwanie aktywne)
+  if (countEl) {
+    const total = [...rows].filter(r => r.querySelector('.file-name-text')).length;
+    countEl.textContent = q ? `${visible} / ${total}` : '';
+  }
+
+  // Komunikat "brak wyników"
+  let noResults = ft.querySelector('.file-search-empty');
+  if (q && visible === 0) {
+    if (!noResults) {
+      noResults = document.createElement('div');
+      noResults.className = 'file-search-empty loading-row';
+      noResults.style.color = 'var(--text-muted)';
+      noResults.style.justifyContent = 'center';
+      noResults.style.padding = '24px';
+      ft.appendChild(noResults);
+    }
+    noResults.textContent = `Brak plików pasujących do „${q}"`;
+    noResults.style.display = '';
+  } else if (noResults) {
+    noResults.style.display = 'none';
+  }
+}
+
+// Ctrl+F — otwiera wyszukiwarkę gdy eksplorator jest widoczny
+document.addEventListener('keydown', e => {
+  const repoView = document.getElementById('repoView');
+  if (!repoView || repoView.style.display === 'none') return;
+
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    e.preventDefault();
+    window.openFileSearch();
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    const bar = _getSearchBar();
+    if (bar && !bar.classList.contains('file-search-bar--hidden')) {
+      e.preventDefault();
+      window.closeFileSearch();
+    }
+  }
+});
+
+// Podłącz input po załadowaniu DOM
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = _getSearchInput();
+  if (inp) {
+    inp.addEventListener('input', e => window._onFileSearchInput(e.target.value));
+  }
+});
+
+// Reset wyszukiwania przy zmianie katalogu / snapshotu
+const _origLoadDirectory = window.loadDirectory;
+window.loadDirectory = function(dirPath) {
+  _searchQuery = '';
+  const inp = _getSearchInput();
+  if (inp) inp.value = '';
+  const countEl = _getSearchCount();
+  if (countEl) countEl.textContent = '';
+  return _origLoadDirectory(dirPath);
 };

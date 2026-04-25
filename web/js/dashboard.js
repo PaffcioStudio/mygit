@@ -97,6 +97,7 @@ export function renderDashboard() {
             <div class="recent-item" onclick="window.clickRepo('${r.id}')">
               <div style="width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0"></div>
               <span class="recent-name">${escapeHtml(r.name)}</span>
+              <span class="recent-msg">${r.lastCommit?.message ? escapeHtml(r.lastCommit.message) : '<span style="color:var(--text-muted);font-style:italic">brak opisu</span>'}</span>
               ${r.category ? `<span class="badge badge-snap">${escapeHtml(r.category)}</span>` : ''}
               <span class="badge badge-snap">${r.snapshots||0}s</span>
               <span class="recent-date">${fmtDate(r.updatedAt)}</span>

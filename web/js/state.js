@@ -14,6 +14,7 @@ export const state = {
   currentRepo:     null,     // obiekt repo
   currentSnapshot: null,     // string — nazwa pliku .zip
   snapshots:       [],       // lista snapshotów aktualnego repo
+  snapshotMessages: {},      // { [file]: message } — opisy z bazy danych
   currentPath:     '',       // ścieżka w przeglądarce
 
   // Notatki

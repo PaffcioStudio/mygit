@@ -133,20 +133,40 @@ export async function getCommitPath(repoId, commitFile) {
 }
 
 export async function deleteCommit(repoId, commitFile) {
-  const repoDir    = await ensureRepoExists(repoId);
+  const repoDir = await ensureRepoExists(repoId);
+
+  // Plik istnieje fizycznie w versions/ → legacy ZIP; brak pliku → delta manifest
   const commitPath = await getCommitPath(repoId, commitFile);
-  if (!commitPath) throw new Error(`Snapshot '${commitFile}' nie znaleziony.`);
+  const isDeltaManifest = !commitPath;
 
-  const stat = await fs.stat(commitPath).catch(() => ({ size: 0 }));
-  await fs.remove(commitPath);
+  let removedSize = 0;
 
-  const targetName = path.basename(commitPath);
-  dbDeleteCommit(repoId, targetName);
+  if (isDeltaManifest) {
+    // === Delta snapshot: usuń manifest i wpisy z DB ===
+    const { dbDeleteManifest } = await import('./db.js');
+    // Pobierz rozmiar z commitu zanim usuniemy
+    const commits = dbGetCommits(repoId);
+    const entry = commits.find(c => c.file === commitFile || c.id === commitFile);
+    removedSize = entry?.size || 0;
+    // Usuń manifest (CASCADE usuwa manifest_entries)
+    dbDeleteManifest(commitFile);
+    // Usuń z commits
+    dbDeleteCommit(repoId, commitFile);
+  } else {
+    // === Legacy ZIP: usuń plik fizycznie ===
+    const stat = await fs.stat(commitPath).catch(() => ({ size: 0 }));
+    removedSize = stat.size;
+    await fs.remove(commitPath);
+    const targetName = path.basename(commitPath);
+    dbDeleteCommit(repoId, targetName);
+    zipCache.invalidate(commitPath);
+  }
 
+  // Zaktualizuj statystyki repo
   const current = dbGetRepo(repoId);
   if (current) {
     const newSnapshots = Math.max(0, (current.snapshots || 0) - 1);
-    const newSize      = Math.max(0, (current.size      || 0) - stat.size);
+    const newSize      = Math.max(0, (current.size      || 0) - removedSize);
     const remaining    = dbGetCommits(repoId);
     const updatedAt    = remaining.length > 0 ? remaining[0].date : current.updatedAt;
     dbUpdateRepoStats(repoId, newSnapshots, newSize, updatedAt);
@@ -156,7 +176,6 @@ export async function deleteCommit(repoId, commitFile) {
     });
   }
 
-  zipCache.invalidate(commitPath);
   return true;
 }
 
@@ -242,24 +261,52 @@ async function unpackToTemp(zipPath, destDir) {
 }
 
 export async function getSnapshotMap(repoId, commitFile = 'latest') {
-  const repoDir     = await ensureRepoExists(repoId);
-  const versionsDir = path.join(repoDir, 'versions');
-  const files       = await fs.readdir(versionsDir);
-  const sorted      = files.filter(f => f.endsWith('.zip')).sort();
-  let targetZip = commitFile === 'latest' ? sorted[sorted.length - 1] : commitFile;
-  if (!targetZip) return {};
-  const zipPath = path.join(versionsDir, targetZip);
-  let zip = zipCache.get(zipPath);
-  if (!zip) { zip = new AdmZip(zipPath); zipCache.set(zipPath, zip); }
-  const map = {};
-  zip.getEntries().forEach(entry => {
-    if (!entry.isDirectory) {
-      const content = entry.getData();
-      const hash    = crypto.createHash('sha1').update(content).digest('hex');
-      map[entry.entryName] = { size: entry.header.size, hash };
+  // ── Nowy system delta: manifesty w DB ─────────────────────────────────
+  const { dbGetRepoManifests, dbGetManifest } = await import('./db.js');
+  const manifests = dbGetRepoManifests(repoId);
+
+  if (manifests.length > 0) {
+    let target;
+    if (!commitFile || commitFile === 'latest') {
+      target = manifests[0]; // posortowane DESC
+    } else {
+      target = manifests.find(m => m.id === commitFile || m.id.startsWith(commitFile));
     }
-  });
-  return map;
+    if (target) {
+      const full = dbGetManifest(target.id);
+      if (full && full.files) {
+        const map = {};
+        for (const [p, hash] of Object.entries(full.files)) {
+          map[p] = { hash, size: full.sizes?.[p] ?? 0 };
+        }
+        return map;
+      }
+    }
+  }
+
+  // ── Fallback: stary system ZIP z katalogu versions ─────────────────────
+  try {
+    const repoDir     = await ensureRepoExists(repoId);
+    const versionsDir = path.join(repoDir, 'versions');
+    const files       = await fs.readdir(versionsDir);
+    const sorted      = files.filter(f => f.endsWith('.zip')).sort();
+    let targetZip = commitFile === 'latest' ? sorted[sorted.length - 1] : commitFile;
+    if (!targetZip) return {};
+    const zipPath = path.join(versionsDir, targetZip);
+    let zip = zipCache.get(zipPath);
+    if (!zip) { zip = new AdmZip(zipPath); zipCache.set(zipPath, zip); }
+    const map = {};
+    zip.getEntries().forEach(entry => {
+      if (!entry.isDirectory) {
+        const content = entry.getData();
+        const hash    = crypto.createHash('sha1').update(content).digest('hex');
+        map[entry.entryName] = { size: entry.header.size, hash };
+      }
+    });
+    return map;
+  } catch {
+    return {};
+  }
 }
 
 export async function computeDiff(repoId, commitFile) {

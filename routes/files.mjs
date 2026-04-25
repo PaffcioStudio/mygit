@@ -6,6 +6,8 @@ import AdmZip from 'adm-zip';
 import { config } from '../core/utils.js';
 import { computeDiff } from '../core/repoManager.js';
 import { zipCache } from '../core/cache.js';
+import { dbGetManifest, dbGetRepoManifests, dbGetFileModifiedDates } from '../core/db.js';
+import { getObject } from '../core/objectStore.js';
 
 const router = Router();
 const dataDir = config.dataDir;
@@ -56,6 +58,18 @@ function isTextFile(filename) {
   return knownText.has(base);
 }
 
+// ── Helper: rozpoznaj czy commitFile to manifest delta czy ZIP ─────────────
+function isManifestId(commitFile) {
+  if (!commitFile) return false;
+  // Akceptuj też stare wpisy z końcówką .manifest (błąd z poprzedniej wersji)
+  return !commitFile.endsWith('.zip');
+}
+
+// Normalizuj ID — usuń .manifest jeśli obecne (stare wpisy w DB)
+function normalizeManifestId(commitFile) {
+  return commitFile.replace(/\.manifest$/, '');
+}
+
 // ── Browse ─────────────────────────────────────────────────────────────────
 router.get('/repos/:id/browse', async (req, res) => {
   try {
@@ -64,6 +78,34 @@ router.get('/repos/:id/browse', async (req, res) => {
     const commitFile  = req.query.commit;
     const versionsDir = path.join(dataDir, 'repos', id, 'versions');
 
+    // ── Delta: manifest-based browse ──────────────────────────────────────
+    if (commitFile && isManifestId(commitFile)) {
+      const manifest = dbGetManifest(normalizeManifestId(commitFile));
+      if (!manifest || manifest.repoId !== id)
+        return res.status(404).json({ error: 'Manifest nie istnieje.' });
+      const modifiedDates = dbGetFileModifiedDates(id, manifest.id);
+      return res.json(browseManifest(manifest, relPath, commitFile, modifiedDates));
+    }
+
+    // Jeśli brak commitFile — sprawdź czy najnowszy snapshot to manifest
+    if (!commitFile) {
+      const manifests = dbGetRepoManifests(id);
+      const hasVersions = await fs.pathExists(versionsDir);
+      const zipFiles = hasVersions ? (await fs.readdir(versionsDir)).filter(f => f.endsWith('.zip')) : [];
+
+      // Użyj manifestu jeśli jest nowszy niż ostatni ZIP
+      if (manifests.length > 0) {
+        const latestManifest = manifests[0]; // posortowane DESC
+        const latestZipDate  = zipFiles.length > 0 ? zipFiles.sort().reverse()[0].replace('.zip','') : '';
+        if (!latestZipDate || latestManifest.id > latestZipDate) {
+          const manifest = dbGetManifest(latestManifest.id);
+          const modifiedDates = dbGetFileModifiedDates(id, manifest.id);
+          return res.json(browseManifest(manifest, relPath, latestManifest.id, modifiedDates));
+        }
+      }
+    }
+
+    // ── Legacy: ZIP-based browse ───────────────────────────────────────────
     if (!(await fs.pathExists(versionsDir)))
       return res.status(404).json({ error: 'Brak katalogu wersji.' });
 
@@ -77,7 +119,6 @@ router.get('/repos/:id/browse', async (req, res) => {
     if (!(await fs.pathExists(zipPath)))
       return res.status(404).json({ error: 'Plik snapshotu nie istnieje.' });
 
-    // Użyj cache ZIP-a jeśli dostępny (unika ponownego parsowania dużych ZIP-ów)
     let zip = zipCache.get(zipPath);
     if (!zip) {
       zip = new AdmZip(zipPath);
@@ -87,7 +128,6 @@ router.get('/repos/:id/browse', async (req, res) => {
     const entries = [];
     const allEntries = zip.getEntries();
 
-    // Aggregate folder sizes and latest modification dates
     const folderSize = {};
     const folderDate = {};
     allEntries.forEach(e => {
@@ -143,7 +183,24 @@ router.get('/repos/:id/browse', async (req, res) => {
 // ── Download ───────────────────────────────────────────────────────────────
 router.get('/repos/:id/download/:file', async (req, res) => {
   try {
-    const fp = path.join(dataDir, 'repos', req.params.id, 'versions', req.params.file);
+    const { id, file } = req.params;
+
+    // Delta manifest — rekonstruuj ZIP z object store
+    if (isManifestId(file)) {
+      const manifest = dbGetManifest(normalizeManifestId(file));
+      if (!manifest || manifest.repoId !== id)
+        return res.status(404).json({ error: 'Manifest nie istnieje.' });
+      const { reconstructSnapshot } = await import('../core/objectStore.js');
+      const buf = await reconstructSnapshot(manifest);
+      const zipName = `${normalizeManifestId(file)}.zip`;
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+      res.setHeader('Content-Length', buf.length);
+      return res.send(buf);
+    }
+
+    // Legacy ZIP
+    const fp = path.join(dataDir, 'repos', id, 'versions', file);
     if (!(await fs.pathExists(fp))) return res.status(404).json({ error: 'Nie znaleziono.' });
     res.download(fp);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -153,6 +210,24 @@ router.get('/repos/:id/download/:file', async (req, res) => {
 router.get('/repos/:id/file/:commitFile/:filePath(*)', async (req, res) => {
   try {
     const { id, commitFile, filePath } = req.params;
+
+    // ── Delta: przez manifest ──────────────────────────────────────────────
+    if (isManifestId(commitFile)) {
+      const manifest = dbGetManifest(normalizeManifestId(commitFile));
+      if (!manifest || manifest.repoId !== id)
+        return res.status(404).json({ error: 'Manifest nie istnieje.' });
+      const hash = manifest.files[filePath];
+      if (!hash) return res.status(404).json({ error: 'Plik nie istnieje w manifeście.' });
+      const buf = await getObject(hash);
+      if (!buf) return res.status(404).json({ error: `Obiekt brakuje w store: ${hash}` });
+      res.setHeader('Content-Type', getContentType(filePath));
+      res.setHeader('Content-Length', buf.length);
+      res.setHeader('Content-Disposition',
+        `${isTextFile(filePath) ? 'inline' : 'attachment'}; filename="${path.basename(filePath)}"`);
+      return res.send(buf);
+    }
+
+    // ── Legacy: ZIP ────────────────────────────────────────────────────────
     const zipPath = path.join(dataDir, 'repos', id, 'versions', commitFile);
     if (!(await fs.pathExists(zipPath))) return res.status(404).json({ error: 'Snapshot nie istnieje.' });
     let zip = zipCache.get(zipPath);
@@ -172,6 +247,22 @@ router.get('/repos/:id/file/:commitFile/:filePath(*)', async (req, res) => {
 router.get('/repos/:id/preview/:commitFile/:filePath(*)', async (req, res) => {
   try {
     const { id, commitFile, filePath } = req.params;
+
+    // ── Delta ──────────────────────────────────────────────────────────────
+    if (isManifestId(commitFile)) {
+      const manifest = dbGetManifest(normalizeManifestId(commitFile));
+      if (!manifest || manifest.repoId !== id)
+        return res.status(404).json({ error: 'Manifest nie istnieje.' });
+      if (!isTextFile(filePath)) return res.status(400).json({ error: 'Tylko pliki tekstowe' });
+      const hash = manifest.files[filePath];
+      if (!hash) return res.status(404).json({ error: 'Plik nie istnieje w manifeście.' });
+      const buf = await getObject(hash);
+      if (!buf) return res.status(404).json({ error: `Obiekt brakuje w store: ${hash}` });
+      const content = buf.toString('utf8');
+      return res.json({ content, type: 'text', size: content.length, filename: path.basename(filePath) });
+    }
+
+    // ── Legacy: ZIP ────────────────────────────────────────────────────────
     const zipPath = path.join(dataDir, 'repos', id, 'versions', commitFile);
     if (!(await fs.pathExists(zipPath))) return res.status(404).json({ error: 'Snapshot nie istnieje.' });
     let zip = zipCache.get(zipPath);
@@ -188,6 +279,28 @@ router.get('/repos/:id/preview/:commitFile/:filePath(*)', async (req, res) => {
 router.get('/repos/:id/checkfile/:commitFile/:filePath(*)', async (req, res) => {
   try {
     const { id, commitFile, filePath } = req.params;
+
+    // ── Delta ──────────────────────────────────────────────────────────────
+    if (isManifestId(commitFile)) {
+      const manifest = dbGetManifest(normalizeManifestId(commitFile));
+      if (!manifest || manifest.repoId !== id)
+        return res.status(404).json({ error: 'Manifest nie istnieje.' });
+      const hash = manifest.files[filePath];
+      if (!hash) return res.status(404).json({ error: 'Plik nie istnieje.' });
+      const buf = await getObject(hash);
+      if (!buf) return res.status(404).json({ error: 'Obiekt brakuje w store.' });
+      const isText = isTextFile(filePath);
+      let isContentText = false;
+      try {
+        const text = buf.toString('utf8');
+        const bad  = [...text].filter(c => { const n = c.charCodeAt(0);
+          return (n < 32 && n !== 9 && n !== 10 && n !== 13) || n === 127; }).length;
+        isContentText = bad / text.length < 0.1;
+      } catch {}
+      return res.json({ isText, isContentText, size: buf.length, filename: path.basename(filePath) });
+    }
+
+    // ── Legacy: ZIP ────────────────────────────────────────────────────────
     const zipPath = path.join(dataDir, 'repos', id, 'versions', commitFile);
     if (!(await fs.pathExists(zipPath))) return res.status(404).json({ error: 'Snapshot nie istnieje.' });
     let zip = zipCache.get(zipPath);
@@ -205,6 +318,58 @@ router.get('/repos/:id/checkfile/:commitFile/:filePath(*)', async (req, res) => 
     res.json({ isText, isContentText, size: entry.header.size, filename: path.basename(filePath) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// ── browseManifest: lista plików snapshotu delta bez rozpakowywania ────────
+function browseManifest(manifest, relPath, commitFile, modifiedDates) {
+  const seen    = new Set();
+  const entries = [];
+  const folderSize = {};
+  const folderDate = {}; // folder -> najnowsza data zmiany pliku w środku
+  const sizes = manifest.sizes || {};
+
+  // Akumuluj rozmiary i daty folderów
+  for (const [filePath] of Object.entries(manifest.files)) {
+    const fileSize = sizes[filePath] || 0;
+    const fileDate = modifiedDates[filePath] || manifest.createdAt;
+    const parts = filePath.split('/');
+    for (let d = 1; d < parts.length; d++) {
+      const key = parts.slice(0, d).join('/');
+      folderSize[key] = (folderSize[key] || 0) + fileSize;
+      if (!folderDate[key] || fileDate > folderDate[key]) folderDate[key] = fileDate;
+    }
+  }
+
+  for (const filePath of Object.keys(manifest.files)) {
+    const fileModified = modifiedDates[filePath] || manifest.createdAt;
+    if (relPath) {
+      const prefix = relPath + '/';
+      if (!filePath.startsWith(prefix)) continue;
+      const rel   = filePath.substring(prefix.length);
+      const parts = rel.split('/');
+      if (!parts.length || !parts[0]) continue;
+      const name = parts[0];
+      const full = `${relPath}/${name}`;
+      if (seen.has(full)) continue;
+      seen.add(full);
+      const isDir = parts.length > 1;
+      entries.push({ name, path: full + (isDir ? '/' : ''), type: isDir ? 'dir' : 'file',
+        size:     isDir ? (folderSize[full] || 0)   : (sizes[filePath] || 0),
+        modified: isDir ? (folderDate[full] || null) : fileModified });
+    } else {
+      const parts = filePath.split('/');
+      const name  = parts[0];
+      if (seen.has(name)) continue;
+      seen.add(name);
+      const isDir = parts.length > 1;
+      entries.push({ name, path: name + (isDir ? '/' : ''), type: isDir ? 'dir' : 'file',
+        size:     isDir ? (folderSize[name] || 0)   : (sizes[filePath] || 0),
+        modified: isDir ? (folderDate[name] || null) : fileModified });
+    }
+  }
+
+  entries.sort((a, b) => a.type === b.type ? a.name.localeCompare(b.name) : (a.type === 'dir' ? -1 : 1));
+  return { commitFile, files: entries, currentPath: relPath, isDelta: true, fileCount: manifest.fileCount };
+}
 
 // ── Diff ───────────────────────────────────────────────────────────────────
 router.get('/repos/:id/diff/:file', async (req, res) => {

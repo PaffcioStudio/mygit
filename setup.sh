@@ -33,7 +33,7 @@ CONFIG_FILE="$CONFIG_DIR/config"
 print_header() {
     echo -e "${CYAN}${BOLD}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║              MYGIT — INSTALATOR v2.2                        ║"
+    echo "║              MYGIT — INSTALATOR v2.3                        ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${RESET}"
 }
@@ -88,10 +88,44 @@ get_new_version() {
 
 check_deps() {
     local missing=0
-    for cmd in curl jq zip unzip; do
+    for cmd in curl jq zip unzip node; do
         command -v "$cmd" >/dev/null 2>&1 || { print_error "Brakuje: $cmd"; missing=1; }
     done
     return $missing
+}
+
+install_missing_deps() {
+    local need_node=0
+    local need_pkgs=()
+
+    for cmd in curl jq zip unzip; do
+        command -v "$cmd" >/dev/null 2>&1 || need_pkgs+=("$cmd")
+    done
+    command -v node >/dev/null 2>&1 || { need_node=1; need_pkgs+=("nodejs"); }
+
+    [ ${#need_pkgs[@]} -eq 0 ] && return 0
+
+    print_warning "Brakuje pakietów: ${need_pkgs[*]}"
+    echo ""
+    if confirm "Zainstalować brakujące pakiety automatycznie? (wymaga sudo)" "y"; then
+        echo ""
+        if command -v apt-get >/dev/null 2>&1; then
+            print_info "Aktualizacja apt..."
+            sudo apt-get update -qq
+            sudo apt-get install -y "${need_pkgs[@]}"
+        elif command -v pacman >/dev/null 2>&1; then
+            sudo pacman -Sy --noconfirm "${need_pkgs[@]}"
+        elif command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y "${need_pkgs[@]}"
+        else
+            print_error "Nieznany menedżer pakietów. Zainstaluj ręcznie: ${need_pkgs[*]}"
+            return 1
+        fi
+        print_success "Pakiety zainstalowane."
+    else
+        print_error "Instalacja anulowana. Zainstaluj ręcznie: ${need_pkgs[*]}"
+        return 1
+    fi
 }
 
 require_root() {
@@ -168,15 +202,16 @@ install_internal() {
         exit 1
     fi
 
-    # Sprawdź zależności
+    # Sprawdź i zainstaluj zależności
     print_info "Sprawdzanie zależności..."
-    if ! check_deps; then
-        echo ""
-        print_error "Zainstaluj brakujące pakiety:"
-        echo -e "  ${CYAN}sudo apt install curl jq zip unzip${RESET}"
+    if ! install_missing_deps; then
         exit 1
     fi
-    print_success "Wszystkie zależności dostępne"
+    if ! check_deps; then
+        print_error "Nie wszystkie zależności są dostępne."
+        exit 1
+    fi
+    print_success "Wszystkie zależności dostępne (curl, jq, zip, unzip, node)"
 
     # Kopiuj binarkę
     print_info "Instalowanie binarki..."

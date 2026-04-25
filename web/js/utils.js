@@ -25,7 +25,13 @@ export function fmtDateFull(d) {
   if (!d) return '—';
   const dt = new Date(d);
   if (isNaN(dt)) return '—';
-  return dt.toLocaleDateString('pl-PL') + ' ' + dt.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'});
+  const day   = String(dt.getDate()).padStart(2, '0');
+  const month = String(dt.getMonth() + 1).padStart(2, '0');
+  const year  = dt.getFullYear();
+  const hh    = String(dt.getHours()).padStart(2, '0');
+  const mm    = String(dt.getMinutes()).padStart(2, '0');
+  const ss    = String(dt.getSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss} · ${day}-${month}-${year}`;
 }
 
 export function humanSize(n) {
@@ -66,12 +72,12 @@ export function snapHash(filename) {
 
 // Wyciągnij opis z nazwy pliku
 export function snapMessage(filename) {
-  if (!filename) return '—';
+  if (!filename) return '';
   // Format: YYYY-MM-DD_HH-MM-SS_opis.zip  lub  YYYY-MM-DD_HH-MM-SS.zip
   const base = filename.replace(/\.zip$/i, '');
-  const parts = base.split('_');
-  if (parts.length > 2) return parts.slice(2).join('_').replaceAll('_', ' ');
-  return base;
+  // Usuń timestamp (YYYY-MM-DD_HH-MM-SS lub YYYY-MM-DD_HH-MM-SS-mmm) i opcjonalne _
+  const withoutTs = base.replace(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(-\d+)?_?/, '');
+  return withoutTs.replaceAll('_', ' ').trim();
 }
 
 export function snapDate(filename) {

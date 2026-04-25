@@ -83,7 +83,60 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_commits_date ON commits(date);
     CREATE INDEX IF NOT EXISTS idx_repos_category ON repos(category);
     CREATE INDEX IF NOT EXISTS idx_repos_updated ON repos(updated_at);
+
+    -- ── Delta storage (Warstwa 1) ──────────────────────────────────────────
+    CREATE TABLE IF NOT EXISTS objects (
+      hash        TEXT PRIMARY KEY,
+      size        INTEGER,
+      created_at  TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS manifests (
+      id          TEXT PRIMARY KEY,
+      repo_id     TEXT NOT NULL,
+      message     TEXT DEFAULT '',
+      created_at  TEXT,
+      file_count  INTEGER DEFAULT 0,
+      FOREIGN KEY (repo_id) REFERENCES repos(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS manifest_entries (
+      manifest_id TEXT NOT NULL,
+      path        TEXT NOT NULL,
+      hash        TEXT NOT NULL,
+      PRIMARY KEY (manifest_id, path),
+      FOREIGN KEY (manifest_id) REFERENCES manifests(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_manifests_repo    ON manifests(repo_id);
+    CREATE INDEX IF NOT EXISTS idx_manifests_date    ON manifests(created_at);
+    CREATE INDEX IF NOT EXISTS idx_manifest_entries  ON manifest_entries(manifest_id);
+    CREATE INDEX IF NOT EXISTS idx_manifest_hash     ON manifest_entries(hash);
   `);
+
+  // ── Fix jednorazowy: usuń .manifest z pola file w commits ─────────────────
+  // Błąd z pierwszej wersji snapshot-delta — file było zapisywane z końcówką
+  // .manifest zamiast czystego manifestId. Naprawiamy przy każdym starcie.
+  {
+    const db = _db;
+    const affected = db.prepare(`
+      UPDATE commits SET file = REPLACE(file, '.manifest', '')
+      WHERE file LIKE '%.manifest'
+    `).run();
+    if (affected.changes > 0) {
+      console.log(`🔧 Naprawiono ${affected.changes} wpisów commits (usunięto .manifest z file)`);
+      // Napraw też last_commit w repos (JSON stringify zawierający stare file)
+      const repos = db.prepare(`SELECT id, last_commit FROM repos WHERE last_commit LIKE '%.manifest%'`).all();
+      const upd = db.prepare(`UPDATE repos SET last_commit = ? WHERE id = ?`);
+      for (const r of repos) {
+        try {
+          const lc = JSON.parse(r.last_commit);
+          if (lc.file) lc.file = lc.file.replace(/\.manifest$/, '');
+          upd.run(JSON.stringify(lc), r.id);
+        } catch {}
+      }
+    }
+  }
 
   console.log(`✅ SQLite DB gotowa: ${DB_PATH}`);
   return _db;
@@ -456,6 +509,142 @@ export function dbArchiveRepo(repoId, metaData) {
 
 export function dbUnarchiveRepo(repoId) {
   getDb().prepare('DELETE FROM archive WHERE repo_id = ?').run(repoId);
+}
+
+// ── OBJECTS API (delta storage) ───────────────────────────────────────────
+
+export function dbHasObject(hash) {
+  return !!getDb().prepare('SELECT 1 FROM objects WHERE hash = ?').get(hash);
+}
+
+export function dbFilterMissingObjects(hashes) {
+  if (!hashes.length) return [];
+  const db = getDb();
+  const placeholders = hashes.map(() => '?').join(',');
+  const found = new Set(
+    db.prepare(`SELECT hash FROM objects WHERE hash IN (${placeholders})`).all(...hashes).map(r => r.hash)
+  );
+  return hashes.filter(h => !found.has(h));
+}
+
+export function dbAddObjects(entries) {
+  // entries: [{ hash, size }]
+  const db = getDb();
+  const stmt = db.prepare('INSERT OR IGNORE INTO objects (hash, size, created_at) VALUES (?, ?, ?)');
+  const now = new Date().toISOString();
+  const insertAll = db.transaction((rows) => {
+    for (const { hash, size } of rows) stmt.run(hash, size, now);
+  });
+  insertAll(entries);
+}
+
+// ── MANIFESTS API (delta storage) ─────────────────────────────────────────
+
+export function dbCreateManifest(manifestId, repoId, message, fileMap) {
+  // fileMap: { "path": "hash", ... }
+  const db = getDb();
+  const now = new Date().toISOString();
+  const fileCount = Object.keys(fileMap).length;
+
+  const stmtManifest = db.prepare(
+    'INSERT INTO manifests (id, repo_id, message, created_at, file_count) VALUES (?, ?, ?, ?, ?)'
+  );
+  const stmtEntry = db.prepare(
+    'INSERT INTO manifest_entries (manifest_id, path, hash) VALUES (?, ?, ?)'
+  );
+
+  const insertAll = db.transaction(() => {
+    stmtManifest.run(manifestId, repoId, message, now, fileCount);
+    for (const [filePath, hash] of Object.entries(fileMap)) {
+      stmtEntry.run(manifestId, filePath, hash);
+    }
+  });
+  insertAll();
+
+  return { id: manifestId, repoId, message, createdAt: now, fileCount };
+}
+
+export function dbGetManifest(manifestId) {
+  const db = getDb();
+  const m = db.prepare('SELECT * FROM manifests WHERE id = ?').get(manifestId);
+  if (!m) return null;
+  // JOIN z objects żeby mieć rozmiary plików dla browseManifest
+  const entries = db.prepare(`
+    SELECT me.path, me.hash, COALESCE(o.size, 0) AS size
+    FROM manifest_entries me
+    LEFT JOIN objects o ON o.hash = me.hash
+    WHERE me.manifest_id = ?
+  `).all(manifestId);
+  const files = {};
+  const sizes = {};
+  for (const e of entries) {
+    files[e.path] = e.hash;
+    sizes[e.path] = e.size;
+  }
+  return { id: m.id, repoId: m.repo_id, message: m.message, createdAt: m.created_at, fileCount: m.file_count, files, sizes };
+}
+
+export function dbGetRepoManifests(repoId) {
+  return getDb().prepare('SELECT * FROM manifests WHERE repo_id = ? ORDER BY created_at DESC').all(repoId)
+    .map(m => ({ id: m.id, repoId: m.repo_id, message: m.message, createdAt: m.created_at, fileCount: m.file_count }));
+}
+
+export function dbDeleteManifest(manifestId) {
+  getDb().prepare('DELETE FROM manifests WHERE id = ?').run(manifestId);
+}
+
+// Dla danego manifestu zwraca mapę { path -> created_at } — data ostatniej zmiany każdego pliku.
+// "Ostatnia zmiana" = data najnowszego manifestu (w tym repo, <= manifestId) w którym hash pliku
+// jest INNY niż w poprzednim manifeście, czyli plik faktycznie się zmienił.
+// Algorytm: dla każdej ścieżki w manifeście znajdź najnowszy manifest gdzie ten plik miał
+// inny hash niż w poprzednim snapsocie — to jest data ostatniej modyfikacji.
+export function dbGetFileModifiedDates(repoId, manifestId) {
+  const db = getDb();
+
+  // Pobierz wszystkie manifesty tego repo posortowane chronologicznie (ASC)
+  const allManifests = db.prepare(`
+    SELECT id, created_at FROM manifests WHERE repo_id = ? ORDER BY created_at ASC
+  `).all(repoId);
+
+  if (allManifests.length === 0) return {};
+
+  // Buduj mapę { path -> { hash, lastChanged } } przechodząc po manifestach
+  const fileState = {}; // path -> { hash, date }
+
+  for (const m of allManifests) {
+    const entries = db.prepare(
+      'SELECT path, hash FROM manifest_entries WHERE manifest_id = ?'
+    ).all(m.id);
+
+    for (const e of entries) {
+      const prev = fileState[e.path];
+      if (!prev || prev.hash !== e.hash) {
+        // Plik jest nowy lub zmienił się — aktualizuj datę ostatniej zmiany
+        fileState[e.path] = { hash: e.hash, date: m.created_at };
+      }
+    }
+
+    // Jeśli dotarliśmy do docelowego manifestu — stop
+    if (m.id === manifestId) break;
+  }
+
+  const result = {};
+  for (const [path, state] of Object.entries(fileState)) {
+    result[path] = state.date;
+  }
+  return result;
+}
+
+export function dbGetFileHistory(repoId, filePath) {
+  // Zwraca listę manifestów gdzie plik się zmienił
+  const db = getDb();
+  return db.prepare(`
+    SELECT m.id, m.message, m.created_at, me.hash
+    FROM manifests m
+    JOIN manifest_entries me ON me.manifest_id = m.id
+    WHERE m.repo_id = ? AND me.path = ?
+    ORDER BY m.created_at DESC
+  `).all(repoId, filePath);
 }
 
 // ── DB INFO ───────────────────────────────────────────────────────────────

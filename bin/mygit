@@ -4,15 +4,14 @@
 # 🧠 mygit - Klient REST API (Bash)
 # Plik znajduje się w /bin/mygit
 # Autor: Paffcio (2025-2026)
-# Wersja: 2.2.1 (Fixed diff + get versions)
+# Wersja: 2.3.4 (search: contains zamiast test dla polskich znaków)
 # =============================================================================
 
-# Konfiguracja
 CONFIG_DIR="$HOME/.config/mygit"
-CONFIG_FILE="$CONFIG_DIR/config.json"
+CONFIG_FILE="$CONFIG_DIR/config"
 REPO_NAME=$(basename "$PWD")
 
-# Kolory i Style
+# Kolory
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -24,710 +23,847 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
-# --- FUNKCJE POMOCNICZE ---
+# Ikony statusu
+ICO_OK="${GREEN}✔${NC}"
+ICO_ERR="${RED}✖${NC}"
+ICO_WARN="${YELLOW}!${NC}"
+ICO_INFO="${BLUE}›${NC}"
+ICO_SNAP="${CYAN}◆${NC}"
 
-log_info() { echo -e "${BLUE}ℹ️  mygit:${NC} $1" >&2; }
-log_success() { echo -e "${GREEN}✅ mygit:${NC} $1" >&2; }
-log_warning() { echo -e "${YELLOW}⚠️  mygit:${NC} $1" >&2; }
-log_error() { echo -e "${RED}❌ mygit:${NC} $1" >&2; }
+SEP="${DIM}─────────────────────────────────────────────────────────────────${NC}"
 
+# --- LOGI ---
+log_info()    { echo -e "  ${ICO_INFO} $1" >&2; }
+log_success() { echo -e "  ${ICO_OK} $1" >&2; }
+log_warning() { echo -e "  ${ICO_WARN} $1" >&2; }
+log_error()   { echo -e "  ${ICO_ERR} ${RED}$1${NC}" >&2; }
+log_step()    { echo -e "\n${BOLD}${CYAN}$1${NC}" >&2; }
+
+# --- SPINNER ---
+_spinner_pid=""
+spinner_start() {
+    local msg="${1:-Pracuję...}"
+    local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    (
+        local i=0
+        while true; do
+            printf "\r  ${CYAN}%s${NC} %s  " "${frames[$((i % ${#frames[@]}))]}" "$msg" >&2
+            sleep 0.08
+            ((i++))
+        done
+    ) &
+    _spinner_pid=$!
+    disown "$_spinner_pid" 2>/dev/null
+}
+spinner_stop() {
+    if [ -n "$_spinner_pid" ]; then
+        kill "$_spinner_pid" 2>/dev/null
+        wait "$_spinner_pid" 2>/dev/null
+        printf "\r\033[2K" >&2
+        _spinner_pid=""
+    fi
+}
+
+# --- DEPS ---
 check_deps() {
     local missing=0
-    for cmd in curl jq zip unzip; do
-        if ! command -v $cmd >/dev/null 2>&1; then
-            log_error "Brak wymaganej komendy: $cmd"
-            missing=1
-        fi
+    for cmd in curl jq zip unzip node; do
+        command -v "$cmd" >/dev/null 2>&1 || { log_error "Brak wymaganej komendy: ${BOLD}$cmd${NC}"; missing=1; }
     done
-    if [ $missing -eq 1 ]; then
-        echo "Zainstaluj brakujące narzędzia (np. sudo apt install curl jq zip unzip)"
-        exit 1
-    fi
+    [ $missing -eq 1 ] && { echo -e "  Zainstaluj brakujące narzędzia: ${CYAN}sudo apt install curl jq zip unzip nodejs${NC}"; exit 1; }
 }
 
 load_config() {
     if [ ! -f "$CONFIG_FILE" ]; then
         log_error "Brak pliku konfiguracji: $CONFIG_FILE"
-        echo "Uruchom ponownie skrypt install.sh lub utwórz plik ręcznie."
+        echo -e "  Uruchom: ${CYAN}setup.sh${NC}"
         exit 1
     fi
-    BACKEND_URL=$(jq -r '.backend.baseUrl' "$CONFIG_FILE")
-    if [ "$BACKEND_URL" == "null" ] || [ -z "$BACKEND_URL" ]; then
-        log_error "Błędna konfiguracja: brak backend.baseUrl"
+    local host port
+    host=$(grep '^HOST=' "$CONFIG_FILE" | cut -d= -f2)
+    port=$(grep '^PORT=' "$CONFIG_FILE" | cut -d= -f2)
+    if [ -z "$host" ] || [ -z "$port" ]; then
+        log_error "Błędna konfiguracja: brak HOST lub PORT w $CONFIG_FILE"
         exit 1
     fi
+    BACKEND_URL="http://$host:$port"
 }
 
 format_bytes() {
     local bytes=$1
-    if [ -z "$bytes" ] || [ "$bytes" == "null" ]; then echo "0 B"; return; fi
-    if [ $bytes -lt 1024 ]; then echo "${bytes} B";
-    elif [ $bytes -lt 1048576 ]; then echo "$(echo "scale=2; $bytes/1024" | bc) KB";
-    else echo "$(echo "scale=2; $bytes/1048576" | bc) MB"; fi
+    [ -z "$bytes" ] || [ "$bytes" == "null" ] && { echo "0 B"; return; }
+    # awk zawsze używa kropki dziesiętnej niezależnie od locale systemu
+    if [ "$bytes" -lt 1024 ]; then
+        echo "${bytes} B"
+    elif [ "$bytes" -lt 1048576 ]; then
+        awk "BEGIN { printf \"%.1f KB\", $bytes/1024 }"
+    else
+        awk "BEGIN { printf \"%.2f MB\", $bytes/1048576 }"
+    fi
 }
 
-# Funkcja do ładnego wyświetlania pojedynczego wpisu
+format_date() {
+    local iso="$1"
+    local d t
+    d=$(echo "$iso" | cut -dT -f1)
+    t=$(echo "$iso" | cut -dT -f2 | cut -d: -f1,2)
+    local y m day
+    y=$(echo "$d" | cut -d- -f1)
+    m=$(echo "$d" | cut -d- -f2)
+    day=$(echo "$d" | cut -d- -f3)
+    echo "${day}-${m}-${y} ${t}"
+}
+
+# Sprawdza czy serwer odpowiada
+check_server() {
+    curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 "$BACKEND_URL/api/repos" | grep -q "200" || {
+        log_error "Serwer nie odpowiada pod ${BOLD}$BACKEND_URL${NC}"
+        echo -e "  Sprawdź czy mygit server jest uruchomiony."
+        exit 1
+    }
+}
+
 print_commit_entry() {
-    local file="$1"
-    local date="$2"
-    local msg="$3"
-    local size="$4"
-
-    # Wyciągamy poszczególne części daty (zakładając format wejściowy YYYY-MM-DDTHH:MM:SS)
-    local d_part=$(echo "$date" | cut -d'T' -f1)
-    local y=$(echo "$d_part" | cut -d'-' -f1)
-    local m=$(echo "$d_part" | cut -d'-' -f2)
-    local d=$(echo "$d_part" | cut -d'-' -f3)
-    
-    # Wyciągamy godzinę i minuty
-    local t_part=$(echo "$date" | cut -d'T' -f2 | cut -d: -f1,2)
-
-    # Składamy w format DD-MM-YYYY HH:MM
-    local clean_date="${d}-${m}-${y} ${t_part}"
-
-    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
-    echo -e "${CYAN}📦 ${file}${NC}"
-    echo -e "   ${DIM}📅 ${clean_date}      💾 $(format_bytes $size)${NC}"
-    echo -e "   ${BOLD}💭 ${msg}${NC}"
+    local file="$1" date="$2" msg="$3" size="$4" idx="$5"
+    local clean_date
+    clean_date=$(format_date "$date")
+    local num=""
+    [ -n "$idx" ] && num="${DIM}${idx}.${NC} "
+    echo -e "$SEP"
+    echo -e "  ${num}${ICO_SNAP} ${BOLD}${file}${NC}"
+    echo -e "     ${DIM}📅 ${clean_date}   💾 $(format_bytes "$size")${NC}"
+    echo -e "     ${WHITE}💬 ${msg}${NC}"
 }
 
-# --- KOMENDY ---
+# Node.js file walker — jeden silnik dla save i diff
+_node_walk() {
+    node << 'NODE_EOF'
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const mode = process.env.WALK_MODE || 'list'; // 'list' | 'hash' (sha1) | 'sha256'
+
+const DEFAULTS = ['.git','node_modules','.venv','.env',
+    '.DS_Store','Thumbs.db','dist/','build/','.mygit_backup_*',
+    '*.log','*.zip','*.db','*.db-shm','*.db-wal','logs/','*.pid'];
+
+function readIgnoreFile(filepath) {
+    return fs.readFileSync(filepath,'utf8').split('\n')
+        .map(l=>l.trim())
+        .filter(l=>l && !l.startsWith('#') && !l.startsWith('!'));
+}
+
+// Priorytet: .mygitignore > .gitignore > brak (tylko defaults)
+// Jeśli istnieje .mygitignore — .gitignore jest ignorowany
+let extraPatterns = [];
+let ignoreSource = 'defaults';
+if (fs.existsSync('.mygitignore')) {
+    extraPatterns = readIgnoreFile('.mygitignore');
+    ignoreSource = '.mygitignore';
+} else if (fs.existsSync('.gitignore')) {
+    extraPatterns = readIgnoreFile('.gitignore');
+    ignoreSource = '.gitignore';
+}
+// Wypisz źródło na stderr żeby bash mógł je przechwycić
+process.stderr.write('IGNORE_SOURCE='+ignoreSource+'\n');
+
+const ignorePatterns = [...new Set([...DEFAULTS, ...extraPatterns])];
+
+function patternToRegex(pat) {
+    const s = pat.replace(/\/$/,'');
+    const e = s.replace(/[.+^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'[^/]*');
+    return new RegExp('(^|/)'+e+'(/|$)');
+}
+const compiled = ignorePatterns.map(patternToRegex);
+const ignore = r => compiled.some(re=>re.test(r));
+
+const MAX = 100*1024*1024;
+const result = (mode==='hash' || mode==='sha256') ? {} : [];
+
+function walk(dir) {
+    let items; try { items=fs.readdirSync(dir); } catch{ return; }
+    for (const item of items) {
+        const full=path.join(dir,item);
+        const rel=path.relative('.',full).replace(/\\/g,'/');
+        if (ignore(rel)) continue;
+        let stat; try { stat=fs.statSync(full); } catch{ continue; }
+        if (stat.isDirectory()) { walk(full); continue; }
+        if (stat.size>MAX) continue;
+        if (mode==='hash') {
+            try {
+                const buf=fs.readFileSync(full);
+                result[rel]=crypto.createHash('sha1').update(buf).digest('hex');
+            } catch{}
+        } else if (mode==='sha256') {
+            try {
+                const buf=fs.readFileSync(full);
+                result[rel]=crypto.createHash('sha256').update(buf).digest('hex');
+            } catch{}
+        } else {
+            result.push(rel);
+        }
+    }
+}
+walk('.');
+process.stdout.write((mode==='hash'||mode==='sha256') ? JSON.stringify(result) : result.join('\n'));
+NODE_EOF
+}
+
+# ─────────────────────────────────────────────────────────────────
+# KOMENDY
+# ─────────────────────────────────────────────────────────────────
 
 cmd_init() {
+    check_server
     local desc="${1:-Repozytorium $REPO_NAME}"
-    log_info "Inicjalizacja repozytorium '$REPO_NAME' na serwerze..."
-    local json=$(jq -n --arg name "$REPO_NAME" --arg desc "$desc" '{name: $name, description: $desc}')
-    local response=$(curl -s -X POST -H "Content-Type: application/json" -d "$json" "$BACKEND_URL/api/repos")
-    if echo "$response" | grep -q "error"; then
-        log_error "Błąd: $(echo "$response" | jq -r '.error')"
-        exit 1
-    fi
-    log_success "Repozytorium utworzone!"
-}
-
-cmd_category() {
-    local action="$1"
-    shift
-    
-    case "$action" in
-        list)
-            log_info "Dostępne kategorie:"
-            echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
-            curl -s "$BACKEND_URL/api/categories" | jq -r '.categories[] | "\(.icon) \(.name)|\(.id)|\(.color)"' | while IFS='|' read -r name id color; do
-                echo -e "${CYAN}$name${NC}"
-                echo -e "   ${DIM}ID: $id | Kolor: $color${NC}"
-            done
-            echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
-            ;;
-            
-        set)
-            local input="$1"
-            if [ -z "$input" ]; then
-                log_error "Podaj nazwę lub ID kategorii"
-                exit 1
-            fi
-
-            # Pobierz kategorie
-            local categories=$(curl -s "$BACKEND_URL/api/categories")
-
-            # Znajdź kategorię po ID lub nazwie
-            local category_id=$(echo "$categories" | jq -r --arg val "$input" '
-                .categories[] |
-                select(.id == $val or .name == $val) |
-                .id
-            ' | head -n1)
-
-            if [ -z "$category_id" ] || [ "$category_id" = "null" ]; then
-                log_error "Nie znaleziono kategorii: $input"
-                exit 1
-            fi
-
-            log_info "Ustawianie kategorii '$category_id' dla '$REPO_NAME'..."
-
-            local json=$(jq -n --arg cat "$category_id" '{category: $cat}')
-            local response=$(curl -s -X POST -H "Content-Type: application/json" \
-                -d "$json" \
-                "$BACKEND_URL/api/repos/$REPO_NAME/category")
-
-            if echo "$response" | grep -q "error"; then
-                log_error "Błąd: $(echo "$response" | jq -r '.error')"
-                exit 1
-            fi
-
-            log_success "Kategoria ustawiona na: $category_id"
-            ;;
-            
-        add)
-            local name="$1"
-            local color="${2:-#64748b}"
-            local icon="${3:-📁}"
-            
-            if [ -z "$name" ]; then
-                log_error "Podaj nazwę nowej kategorii"
-                exit 1
-            fi
-            
-            log_info "Dodawanie kategorii '$name'..."
-            local json=$(jq -n --arg name "$name" --arg color "$color" --arg icon "$icon" '{name: $name, color: $color, icon: $icon}')
-            local response=$(curl -s -X POST -H "Content-Type: application/json" -d "$json" "$BACKEND_URL/api/categories")
-            
-            if echo "$response" | grep -q "error"; then
-                log_error "Błąd: $(echo "$response" | jq -r '.error')"
-                exit 1
-            fi
-            
-            log_success "Dodano kategorię: $name"
-            ;;
-            
-        delete|remove|rm)
-            local id="$1"
-            if [ -z "$id" ]; then
-                log_error "Podaj ID lub nazwę kategorii do usunięcia"
-                exit 1
-            fi
-
-            echo -e "${RED}Czy na pewno usunąć kategorię '$id'?${NC}"
-            read -p "Wpisz TAK aby potwierdzić: " confirm
-
-            if [ "$confirm" != "TAK" ]; then
-                log_info "Anulowano"
-                exit 0
-            fi
-
-            response=$(curl -s -X DELETE "$BACKEND_URL/api/categories/$id")
-
-            if echo "$response" | grep -q "error"; then
-                log_error "$(echo "$response" | jq -r '.error')"
-                exit 1
-            fi
-
-            log_success "Kategoria została usunięta"
-            ;;
-
-        *)
-            echo -e "${YELLOW}Użycie: mygit category <akcja>${NC}"
-            echo ""
-            echo "Akcje:"
-            echo "  list              - wyświetl wszystkie kategorie"
-            echo "  set <nazwa>       - ustaw kategorię dla bieżącego repo"
-            echo "  add <nazwa> [kolor] [ikona] - dodaj nową kategorię"
-            echo "  delete <id>       - usuń kategorię"
-            echo ""
-            echo "Przykłady:"
-            echo "  mygit category list"
-            echo "  mygit category set Web"
-            echo "  mygit category add \"Moje Projekty\" \"#ff6b6b\" \"🚀\""
-            exit 1
-            ;;
-    esac
+    log_step "Inicjalizacja: ${REPO_NAME}"
+    spinner_start "Tworzę repozytorium na serwerze..."
+    local json response
+    json=$(jq -n --arg name "$REPO_NAME" --arg desc "$desc" '{name:$name,description:$desc}')
+    response=$(curl -s -X POST -H "Content-Type: application/json" -d "$json" "$BACKEND_URL/api/repos")
+    spinner_stop
+    echo "$response" | grep -q '"error"' && { log_error "$(echo "$response" | jq -r '.error')"; exit 1; }
+    log_success "Repozytorium ${BOLD}$REPO_NAME${NC} gotowe."
+    echo -e "  Następny krok: ${CYAN}mygit save \"Pierwsza wersja\"${NC}"
 }
 
 cmd_save() {
+    check_server
     local msg="${1:-snapshot}"
-    log_info "Przygotowywanie snapshotu dla '$REPO_NAME'..."
-    local check=$(curl -s -o /dev/null -w "%{http_code}" "$BACKEND_URL/api/repos/$REPO_NAME/info")
-    if [ "$check" != "200" ]; then
-        log_error "Repozytorium nie istnieje na serwerze. Użyj najpierw: mygit init"
-        exit 1
+    log_step "Snapshot: ${REPO_NAME}"
+
+    spinner_start "Sprawdzam repozytorium..."
+    local check
+    check=$(curl -s -o /dev/null -w "%{http_code}" "$BACKEND_URL/api/repos/$REPO_NAME/info")
+    spinner_stop
+    [ "$check" != "200" ] && { log_error "Repozytorium nie istnieje. Użyj: ${BOLD}mygit init${NC}"; exit 1; }
+
+    # ── Krok 1: Skanuj pliki + oblicz SHA-256 ────────────────────────────
+    spinner_start "Skanuję pliki i liczę SHA-256..."
+    local tmp_hash_json tmp_stderr
+    tmp_hash_json=$(mktemp /tmp/mygit_hashmap_XXXXXX.json)
+    tmp_stderr=$(mktemp /tmp/mygit_stderr_XXXXXX.txt)
+    WALK_MODE=sha256 _node_walk > "$tmp_hash_json" 2>"$tmp_stderr"
+    local ignore_src
+    ignore_src=$(grep '^IGNORE_SOURCE=' "$tmp_stderr" | cut -d= -f2)
+    rm -f "$tmp_stderr"
+    spinner_stop
+    [ -n "$ignore_src" ] && log_info "Wzorce ignorowania: ${DIM}${ignore_src}${NC}"
+
+    [ ! -s "$tmp_hash_json" ] && { log_error "Brak plików lub błąd skanowania."; rm -f "$tmp_hash_json"; exit 1; }
+
+    local file_count
+    file_count=$(cat "$tmp_hash_json" | jq 'length')
+    log_info "Znaleziono ${BOLD}${file_count}${NC} plików"
+
+    # ── Krok 2: Zapytaj serwer jakich obiektów brakuje ───────────────────
+    spinner_start "Sprawdzam co już jest na serwerze..."
+    local missing_json
+    missing_json=$(curl -s -X POST \
+        "$BACKEND_URL/api/repos/$REPO_NAME/check-objects" \
+        -H "Content-Type: application/json" \
+        --data-binary "@$tmp_hash_json")
+    spinner_stop
+
+    echo "$missing_json" | grep -q '"error"' && {
+        log_error "Błąd check-objects: $(echo "$missing_json" | jq -r '.error')"
+        rm -f "$tmp_hash_json"; exit 1
+    }
+
+    local missing_count
+    missing_count=$(echo "$missing_json" | jq '.missing | length')
+    local reused_count=$(( file_count - missing_count ))
+    log_info "Nowych plików do wysłania: ${BOLD}${missing_count}${NC}  (${DIM}${reused_count} już na serwerze${NC})"
+
+    # ── Kroki 3+4: Zbuduj ZIP (manifest zawsze jako pierwszy plik) ───────
+    # Manifest idzie jako __manifest__.json — dzięki temu jest zawsze prawidłowy
+    # ZIP nawet gdy missing_count=0 (unika "Invalid zip format" przy rozszerzaniu
+    # pustego pliku)
+    local tmp_zip
+    tmp_zip=$(mktemp /tmp/mygit_delta_XXXXXX.zip)
+    rm -f "$tmp_zip"
+
+    local tmp_manifest_dir
+    tmp_manifest_dir=$(mktemp -d /tmp/mygit_manifest_XXXXXX)
+    cat "$tmp_hash_json" | jq -c '.' > "$tmp_manifest_dir/__manifest__.json"
+    (cd "$tmp_manifest_dir" && zip -q "$tmp_zip" "__manifest__.json")
+    rm -rf "$tmp_manifest_dir"
+
+    local zip_size=0
+
+    if [ "$missing_count" -gt 0 ]; then
+        spinner_start "Pakuję ${missing_count} nowych plików..."
+
+        local tmp_filelist
+        tmp_filelist=$(mktemp /tmp/mygit_filelist_XXXXXX.txt)
+        cat "$tmp_hash_json" | jq -r \
+            --argjson missing "$(echo "$missing_json" | jq '.missing')" \
+            'to_entries | map(select(.value as $h | $missing | index($h) != null)) | .[].key' \
+            > "$tmp_filelist"
+
+        zip -q "$tmp_zip" -@ < "$tmp_filelist"
+        rm -f "$tmp_filelist"
+        spinner_stop
+    else
+        log_info "Wszystkie pliki już na serwerze — wysyłam tylko manifest"
     fi
 
-    local exclude_args="-x \"*.git*\" \"node_modules/*\" \".mygit_backup_*/*\""
-    if [ -f ".mygitignore" ]; then
-        while IFS= read -r pattern || [ -n "$pattern" ]; do
-            pattern=$(echo "$pattern" | sed 's/#.*$//' | tr -d '[:space:]')
-            if [ -n "$pattern" ]; then
-                exclude_args="$exclude_args \"$pattern*\""
-            fi
-        done < ".mygitignore"
-    fi
+    zip_size=$(stat -c%s "$tmp_zip" 2>/dev/null || stat -f%z "$tmp_zip" 2>/dev/null)
+    log_info "Rozmiar delta ZIPa: ${BOLD}$(format_bytes "$zip_size")${NC}"
 
-    log_info "Pakowanie i wysyłanie..."
-    local encoded_msg=$(jq -nr --arg v "$msg" '$v|@uri')
-    
-    # ZIP -> PIPE -> CURL
-    eval "zip -r -q - . $exclude_args" | \
-    curl -s -X POST --data-binary @- \
-         "$BACKEND_URL/api/repos/$REPO_NAME/snapshot?message=$encoded_msg" \
-         -H "Content-Type: application/zip" > /tmp/mygit_response.json
+    local encoded_msg
+    encoded_msg=$(jq -nr --arg v "$msg" '$v|@uri')
 
-    local response=$(cat /tmp/mygit_response.json)
-    if echo "$response" | grep -q "error"; then
-        log_error "Błąd uploadu: $(echo "$response" | jq -r '.error')"
-        rm -f /tmp/mygit_response.json
-        exit 1
-    fi
+    spinner_start "Wysyłam na serwer..."
+    curl -s -X POST \
+        "$BACKEND_URL/api/repos/$REPO_NAME/snapshot-delta?message=$encoded_msg" \
+        -H "Content-Type: application/zip" \
+        --data-binary "@$tmp_zip" \
+        > /tmp/mygit_response.json
+    spinner_stop
+    rm -f "$tmp_zip" "$tmp_hash_json"
 
-    local file=$(echo "$response" | jq -r '.file')
-    local size=$(echo "$response" | jq -r '.size')
-    log_success "Zapisano snapshot: $file ($(format_bytes $size))"
+    local response
+    response=$(cat /tmp/mygit_response.json)
     rm -f /tmp/mygit_response.json
+    echo "$response" | grep -q '"error"' && { log_error "Błąd uploadu: $(echo "$response" | jq -r '.error')"; exit 1; }
+
+    local manifest_id new_objects reused_objects delta_size
+    manifest_id=$(echo "$response" | jq -r '.manifestId')
+    new_objects=$(echo "$response" | jq -r '.newObjects')
+    reused_objects=$(echo "$response" | jq -r '.reusedObjects')
+    delta_size=$(echo "$response" | jq -r '.deltaSize')
+
+    echo ""
+    echo -e "$SEP"
+    echo -e "  ${ICO_OK} ${BOLD}Zapisano snapshot (delta)${NC}"
+    echo -e "     ${DIM}🆔 $manifest_id${NC}"
+    echo -e "     ${DIM}📦 $(format_bytes "$delta_size") wysłano   ✨ $new_objects nowych   ♻️  $reused_objects bez zmian   📁 $file_count plików   💬 $msg${NC}"
+    echo -e "$SEP"
 }
 
 cmd_list() {
-    log_info "Lista repozytoriów na $BACKEND_URL:"
-    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
-    curl -s "$BACKEND_URL/api/repos" | jq -r '.[] | "\(.id)|\(.description // "brak opisu")"' | while IFS='|' read -r id desc; do
-        echo -e "${CYAN}📦 ${id}${NC}"
-        echo -e "   ${DIM}${desc}${NC}"
+    check_server
+    log_step "Repozytoria @ ${BACKEND_URL}"
+    spinner_start "Pobieranie listy..."
+    local data
+    data=$(curl -s "$BACKEND_URL/api/repos")
+    spinner_stop
+
+    local total count
+    total=$(echo "$data" | jq 'length')
+    count=$total
+    echo -e "$SEP"
+    local term_width max_desc_len
+    term_width=$(tput cols 2>/dev/null || echo 100)
+    # indent "     " = 5 znaków, zostaje reszta na opis (minus margines 2)
+    max_desc_len=$((term_width - 7))
+    for i in $(seq 0 $((count - 1))); do
+        local id desc
+        id=$(echo "$data" | jq -r ".[$i].id // \"\""  )
+        desc=$(echo "$data" | jq -r ".[$i].description // \"\""  | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g;s/^[[:space:]]*//;s/[[:space:]]*$//')
+        # Przytnij opis do szerokości terminala
+        if [ ${#desc} -gt $max_desc_len ]; then
+            desc="${desc:0:$((max_desc_len - 3))}..."
+        fi
+        echo -e "  ${ICO_SNAP} ${BOLD}${CYAN}${id}${NC}"
+        [ -n "$desc" ] && echo -e "     ${DIM}${desc}${NC}"
+        echo ""
     done
-    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+    echo -e "$SEP"
+    echo -e "  ${DIM}Łącznie: ${total} repozytoriów${NC}"
 }
 
 cmd_log() {
-    log_info "Historia snapshotów dla '$REPO_NAME':"
-    local response=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/history")
-    
-    if echo "$response" | grep -q "error"; then
-        echo "Brak historii lub repozytorium nie istnieje."
-        return
-    fi
-    
-    # Pobieramy 15 najnowszych, ale odwracamy kolejność przed wyświetleniem
-    echo "$response" | jq -r '.[0:15] | reverse | .[] | "\(.file)|\(.date)|\(.message)|\(.size)"' | while IFS='|' read -r file date msg size; do
-        print_commit_entry "$file" "$date" "$msg" "$size"
+    check_server
+    log_step "Historia: ${REPO_NAME}"
+    spinner_start "Pobieranie historii..."
+    local response
+    response=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/history")
+    spinner_stop
+
+    echo "$response" | grep -q '"error"' && { echo -e "  ${ICO_ERR} Brak historii lub repozytorium nie istnieje."; return; }
+
+    local total idx=0
+    total=$(echo "$response" | jq 'length')
+    echo "$response" | jq -r '.[0:20] | reverse | .[] | "\(.file)|\(.date)|\(.message)|\(.size)"' | while IFS='|' read -r file date msg size; do
+        ((idx++))
+        print_commit_entry "$file" "$date" "$msg" "$size" "$idx"
     done
-    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+    echo -e "$SEP"
+    echo -e "  ${DIM}Pokazuję max 20 z ${total} snapshotów${NC}"
 }
 
 cmd_status() {
-    local response=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/info")
-    if echo "$response" | grep -q "error"; then
-        log_error "Repozytorium nie istnieje."
+    check_server
+    log_step "Status: ${REPO_NAME}"
+    spinner_start "Pobieranie danych..."
+    local response
+    response=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/info")
+    spinner_stop
+
+    echo "$response" | grep -q '"error"' && { log_error "Repozytorium nie istnieje."; return; }
+
+    local desc count total last last_msg last_date
+    desc=$(echo "$response" | jq -r '.description // "brak opisu"')
+    count=$(echo "$response" | jq -r '.commitCount // 0')
+    total=$(echo "$response" | jq -r '.totalSize // 0')
+    last=$(echo "$response" | jq -r '.lastCommit.file // "—"')
+    last_msg=$(echo "$response" | jq -r '.lastCommit.message // "—"')
+    last_date=$(echo "$response" | jq -r '.lastCommit.date // ""')
+    [ -n "$last_date" ] && last_date=$(format_date "$last_date")
+
+    echo -e "$SEP"
+    echo -e "  ${BOLD}${MAGENTA}$REPO_NAME${NC}"
+    echo -e "  ${DIM}$desc${NC}"
+    echo ""
+    echo -e "  📦 Snapshoty:   ${BOLD}${count}${NC}"
+    echo -e "  💾 Łączny rozmiar: ${BOLD}$(format_bytes "$total")${NC}"
+    echo -e "  🕒 Ostatni:     ${CYAN}${last}${NC}"
+    [ -n "$last_date" ] && echo -e "     ${DIM}$last_date — $last_msg${NC}"
+    echo -e "$SEP"
+}
+
+cmd_diff() {
+    check_server
+    local target="$1"
+
+    # Historyczny diff (snapshot vs poprzedni)
+    if [ -n "$target" ]; then
+        log_step "Diff: ${target}"
+        spinner_start "Pobieranie diff z serwera..."
+        local json
+        json=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/diff/$target")
+        spinner_stop
+        echo "$json" | grep -q '"error"' && { log_error "$(echo "$json" | jq -r '.error')"; return; }
+
+        local added removed modified
+        added=$(echo "$json" | jq -r '.added | length')
+        removed=$(echo "$json" | jq -r '.removed | length')
+        modified=$(echo "$json" | jq -r '.modified | length')
+
+        echo -e "$SEP"
+        echo "$json" | jq -r '.added[]'    2>/dev/null | while read -r f; do echo -e "  ${GREEN}[+] $f${NC}"; done
+        echo "$json" | jq -r '.removed[]'  2>/dev/null | while read -r f; do echo -e "  ${RED}[-] $f${NC}"; done
+        echo "$json" | jq -r '.modified[]' 2>/dev/null | while read -r f; do echo -e "  ${YELLOW}[~] $f${NC}"; done
+        echo -e "$SEP"
+        echo -e "  ${GREEN}+${added}${NC}  ${RED}-${removed}${NC}  ${YELLOW}~${modified}${NC}"
         return
     fi
-    local desc=$(echo "$response" | jq -r '.description')
-    local count=$(echo "$response" | jq -r '.commitCount')
-    local total=$(echo "$response" | jq -r '.totalSize')
-    local last=$(echo "$response" | jq -r '.lastCommit.file // "brak"')
-    
-    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
-    echo -e "${MAGENTA}📊 STATUS: ${BOLD}$REPO_NAME${NC}"
-    echo -e "   📝 Opis:       ${WHITE}$desc${NC}"
-    echo -e "   📦 Snapshoty:  ${WHITE}$count${NC}"
-    echo -e "   💾 Rozmiar:    ${WHITE}$(format_bytes $total)${NC}"
-    echo -e "   🕒 Ostatni:    ${CYAN}$last${NC}"
-    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+
+    # Lokalny diff (dysk vs ostatni snapshot)
+    log_step "Diff lokalny: ${REPO_NAME}"
+
+    spinner_start "Pobieranie informacji o ostatnim snapshocie..."
+    local history latest_snap
+    history=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/history")
+    latest_snap=$(echo "$history" | jq -r '.[0].file // empty')
+    spinner_stop
+
+    [ -z "$latest_snap" ] || [ "$latest_snap" == "null" ] && {
+        log_error "Brak snapshotów. Zrób najpierw: ${BOLD}mygit save${NC}"
+        return
+    }
+    log_info "Porównuję z: ${CYAN}${latest_snap}${NC}"
+
+    spinner_start "Skanuję pliki lokalne..."
+    local local_json node_stderr
+    node_stderr=$(mktemp /tmp/mygit_stderr_XXXXXX.txt)
+    local_json=$(WALK_MODE=sha256 _node_walk 2>"$node_stderr")
+    local ignore_src
+    ignore_src=$(grep '^IGNORE_SOURCE=' "$node_stderr" | cut -d= -f2)
+    rm -f "$node_stderr"
+    spinner_stop
+    [ -n "$ignore_src" ] && log_info "Wzorce ignorowania: ${DIM}${ignore_src}${NC}"
+
+    [ -z "$local_json" ] && { log_error "Błąd skanowania plików."; return; }
+
+    spinner_start "Obliczam różnice..."
+    local tmp_json response
+    tmp_json=$(mktemp /tmp/mygit_diff_XXXXXX.json)
+    printf '%s' "$local_json" > "$tmp_json"
+    response=$(curl -s -X POST -H "Content-Type: application/json" \
+        -d "@$tmp_json" \
+        "$BACKEND_URL/api/repos/$REPO_NAME/diff-local")
+    rm -f "$tmp_json"
+    spinner_stop
+
+    echo "$response" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if 'error' in d else 1)" 2>/dev/null && {
+        log_error "Błąd serwera: $(echo "$response" | jq -r '.error // "nieznany"')"
+        return
+    }
+    [ -z "$response" ] && { log_error "Brak odpowiedzi serwera."; return; }
+
+    local added removed modified
+    added=$(echo "$response"   | jq '.added   | length // 0' 2>/dev/null); added=${added:-0}
+    removed=$(echo "$response" | jq '.removed | length // 0' 2>/dev/null); removed=${removed:-0}
+    modified=$(echo "$response"| jq '.modified| length // 0' 2>/dev/null); modified=${modified:-0}
+
+    echo -e "$SEP"
+    if [ "$added" -eq 0 ] && [ "$removed" -eq 0 ] && [ "$modified" -eq 0 ]; then
+        echo -e "  ${ICO_OK} ${GREEN}Brak zmian — katalog identyczny z ostatnim snapshotem.${NC}"
+    else
+        echo "$response" | jq -r '.added[]'    2>/dev/null | while read -r f; do echo -e "  ${GREEN}[+] $f${NC}"; done
+        echo "$response" | jq -r '.removed[]'  2>/dev/null | while read -r f; do echo -e "  ${RED}[-] $f${NC}"; done
+        echo "$response" | jq -r '.modified[]' 2>/dev/null | while read -r f; do echo -e "  ${YELLOW}[~] $f${NC}"; done
+    fi
+    echo -e "$SEP"
+    echo -e "  ${GREEN}+${added}${NC}  ${RED}-${removed}${NC}  ${YELLOW}~${modified}${NC}"
 }
 
 cmd_comment() {
-    local comment="$1"
-    if [ -z "$comment" ]; then log_error "Podaj treść komentarza"; exit 1; fi
-    local json=$(jq -n --arg desc "$comment" '{description: $desc}')
+    check_server
+    [ -z "$1" ] && { log_error "Podaj treść komentarza"; exit 1; }
+    local json
+    json=$(jq -n --arg d "$1" '{description:$d}')
+    spinner_start "Aktualizuję opis..."
     curl -s -X POST -H "Content-Type: application/json" -d "$json" "$BACKEND_URL/api/repos/$REPO_NAME/comment" > /dev/null
-    log_success "Zaktualizowano opis."
+    spinner_stop
+    log_success "Opis zaktualizowany."
 }
 
 cmd_delete() {
-    local target="$1"
-    if [ -z "$target" ]; then log_error "Podaj nazwę pliku snapshotu do usunięcia"; exit 1; fi
-    curl -s -X DELETE "$BACKEND_URL/api/repos/$REPO_NAME/commit/$target" > /dev/null
-    log_success "Usunięto snapshot $target"
+    check_server
+    [ -z "$1" ] && { log_error "Podaj nazwę snapshotu do usunięcia"; exit 1; }
+    echo -e "\n  ${YELLOW}Usunąć snapshot ${BOLD}$1${NC}${YELLOW}?${NC} [${GREEN}t${NC}/${RED}N${NC}]: \c"
+    read -r confirm < /dev/tty
+    [[ "${confirm,,}" != "t" && "${confirm,,}" != "tak" ]] && { log_info "Anulowano."; exit 0; }
+    spinner_start "Usuwam..."
+    curl -s -X DELETE "$BACKEND_URL/api/repos/$REPO_NAME/commit/$1" > /dev/null
+    spinner_stop
+    log_success "Snapshot $1 usunięty."
+}
+
+cmd_delete_repo() {
+    check_server
+    echo -e "\n  ${RED}${BOLD}UWAGA!${NC} Usunięcie repozytorium ${BOLD}$REPO_NAME${NC} jest nieodwracalne."
+    echo -e "  Wpisz nazwę repozytorium aby potwierdzić: \c"
+    read -r confirm < /dev/tty
+    [ "$confirm" != "$REPO_NAME" ] && { log_info "Anulowano."; exit 0; }
+    spinner_start "Usuwam repozytorium..."
+    local response
+    response=$(curl -s -X DELETE "$BACKEND_URL/api/repos/$REPO_NAME")
+    spinner_stop
+    echo "$response" | grep -q '"error"' && { log_error "$(echo "$response" | jq -r '.error')"; exit 1; }
+    log_success "Repozytorium ${BOLD}$REPO_NAME${NC} usunięte."
 }
 
 cmd_restore() {
-    local target_path="$1"
-    if [ -z "$target_path" ]; then
-        log_error "Użycie: mygit restore /ścieżka/do/pliku_lub_folderu"
+    check_server
+    [ -z "$1" ] && { log_error "Użycie: mygit restore <ścieżka> [--commit=<id>]"; exit 1; }
+    local target_path="" commit_id="" current_dir_name clean_path tmp_file http_code mime
+
+    # Parsuj argumenty
+    for arg in "$@"; do
+        case "$arg" in
+            --commit=*) commit_id="${arg#--commit=}" ;;
+            *)          target_path="$arg" ;;
+        esac
+    done
+
+    [ -z "$target_path" ] && { log_error "Brakuje ścieżki do przywrócenia."; exit 1; }
+
+    current_dir_name=$(basename "$PWD")
+    [ "$current_dir_name" != "$REPO_NAME" ] && {
+        log_error "Musi być wywołane z głównego katalogu projektu (${BOLD}$REPO_NAME${NC})."
         exit 1
-    fi
+    }
+    clean_path=$(echo "$target_path" | sed 's/^\///')
 
-    # 1. Warunek nazwy folderu (musi być zgodna z ID repozytorium)
-    local current_dir_name=$(basename "$PWD")
-    if [ "$current_dir_name" != "$REPO_NAME" ]; then
-        log_error "Odmowa: Nazwa folderu ($current_dir_name) nie zgadza się z ID projektu ($REPO_NAME)."
-        log_info "Restore można wywołać tylko w głównym katalogu projektu."
-        exit 1
-    fi
+    local commit_info=""
+    [ -n "$commit_id" ] && commit_info=" ${DIM}(snapshot: $commit_id)${NC}"
+    log_info "Przywracanie: ${CYAN}$target_path${NC}${commit_info}"
 
-    # Normalizacja ścieżki (usuwamy prowadzący slash dla API)
-    local clean_path=$(echo "$target_path" | sed 's/^\///')
-    log_info "Przywracanie: $target_path z ostatniego snapshotu..."
+    tmp_file=$(mktemp)
+    local url="$BACKEND_URL/api/repos/$REPO_NAME/restore-path?path=$clean_path"
+    [ -n "$commit_id" ] && url="${url}&commit=$commit_id"
 
-    # 2. Wywołanie API
-    local tmp_file=$(mktemp)
-    local http_code=$(curl -s -w "%{http_code}" -o "$tmp_file" "$BACKEND_URL/api/repos/$REPO_NAME/restore-path?path=$clean_path")
-
-    if [ "$http_code" != "200" ]; then
-        local err_msg=$(cat "$tmp_file" | jq -r '.error // "Nieznany błąd"')
-        log_error "Błąd serwera ($http_code): $err_msg"
-        rm -f "$tmp_file"
-        exit 1
-    fi
-
-    # 3. Rozpoznanie czy to ZIP (folder) czy zwykły plik
-    local mime=$(file -b --mime-type "$tmp_file")
-
+    spinner_start "Pobieranie z serwera..."
+    http_code=$(curl -s -w "%{http_code}" -o "$tmp_file" "$url")
+    spinner_stop
+    [ "$http_code" != "200" ] && {
+        log_error "Błąd serwera ($http_code): $(cat "$tmp_file" | jq -r '.error // "Nieznany błąd"')"
+        rm -f "$tmp_file"; exit 1
+    }
+    mime=$(file -b --mime-type "$tmp_file")
     if [ "$mime" == "application/zip" ]; then
-        log_info "Wykryto folder, rozpakowywanie..."
+        spinner_start "Rozpakowuję folder..."
         unzip -o -q "$tmp_file" -d .
-        log_success "Folder $target_path został przywrócony."
+        spinner_stop
+        log_success "Folder ${CYAN}$target_path${NC} przywrócony."
     else
-        # To pojedynczy plik - musimy upewnić się, że folder docelowy istnieje
         mkdir -p "$(dirname "$clean_path")"
         mv "$tmp_file" "$clean_path"
-        log_success "Plik $target_path został przywrócony."
+        log_success "Plik ${CYAN}$target_path${NC} przywrócony."
     fi
-
     rm -f "$tmp_file"
 }
 
 cmd_get() {
-    local target="$1"
-    local force=0
-    
-    # Obsługa flag (np. -f)
+    check_server
+    local force=0 target="" fetch_repo="$REPO_NAME" fetch_file=""
+
     while [[ "$1" == -* ]]; do
-        case "$1" in
-            -f|--force) force=1; shift ;;
-            *) log_error "Nieznana flaga: $1"; exit 1 ;;
-        esac
+        case "$1" in -f|--force) force=1; shift ;; *) log_error "Nieznana flaga: $1"; exit 1 ;; esac
     done
-    
     target="$1"
 
-    local fetch_repo="$REPO_NAME"
-    local fetch_file=""
-    
-    # Parsowanie targetu:
-    # 1. repo@snap.zip - konkretna wersja z konkretnego repo
-    # 2. snap.zip - konkretna wersja z bieżącego repo
-    # 3. repo - najnowsza wersja z podanego repo
-    # 4. brak - najnowsza wersja z bieżącego repo
-    
     if [[ "$target" == *@* ]]; then
-        # Format: repo@snap.zip
-        fetch_repo="${target%@*}"
-        fetch_file="${target#*@}"
+        fetch_repo="${target%@*}"; fetch_file="${target#*@}"
     elif [ -n "$target" ]; then
-        # Sprawdź czy to plik ZIP (konkretna wersja) czy nazwa repo
-        if [[ "$target" == *.zip ]]; then
-            # To konkretna wersja z bieżącego repo
+        # Rozpoznaj czy to plik snapshotu (*.zip lub format daty delta YYYY-MM-DD_...)
+        # czy nazwa repozytorium
+        if [[ "$target" == *.zip ]] || [[ "$target" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_ ]]; then
             fetch_file="$target"
         else
-            # To nazwa repo (pobierz najnowszy)
             fetch_repo="$target"
         fi
     fi
 
-    if [ -n "$fetch_file" ]; then
-        log_info "Pobieranie snapshotu $fetch_file z $fetch_repo..."
-    else
-        log_info "Pobieranie najnowszego snapshotu z $fetch_repo..."
-    fi
-    
-    local url
-    if [ -n "$fetch_file" ]; then
-        url="$BACKEND_URL/api/repos/$fetch_repo/snapshot/$fetch_file"
-    else
-        url="$BACKEND_URL/api/repos/$fetch_repo/latest"
-    fi
-    
-    # 1. Pobranie informacji o pliku
-    local info=$(curl -s "$url")
-    if echo "$info" | grep -q "error"; then
-        log_error "Błąd: $(echo "$info" | jq -r '.error')"
-        exit 1
-    fi
-    local zip_name=$(echo "$info" | jq -r '.file')
-    local zip_size=$(echo "$info" | jq -r '.size')
-    
-    log_info "Znaleziono: $zip_name ($(format_bytes $zip_size))"
+    log_step "Pobieranie snapshotu: ${fetch_repo}"
+    local url info zip_name zip_size
 
-    # --- POTWIERDZENIE ---
+    [ -n "$fetch_file" ] \
+        && url="$BACKEND_URL/api/repos/$fetch_repo/snapshot/$fetch_file" \
+        || url="$BACKEND_URL/api/repos/$fetch_repo/latest"
+
+    spinner_start "Sprawdzam snapshot..."
+    info=$(curl -s "$url")
+    spinner_stop
+    echo "$info" | grep -q '"error"' && { log_error "$(echo "$info" | jq -r '.error')"; exit 1; }
+
+    zip_name=$(echo "$info" | jq -r '.file')
+    zip_size=$(echo "$info" | jq -r '.size')
+    log_info "Snapshot: ${BOLD}${zip_name}${NC}  ($(format_bytes "$zip_size"))"
+
     if [ $force -eq 0 ]; then
-        echo -e "\n${YELLOW}${BOLD}⚠️  UWAGA!${NC}"
-        echo -e "Zaraz pobierzesz dane które ${RED}${BOLD}NADPISZĄ${NC} Twoje lokalne pliki w tym folderze."
-        echo -e "Jeśli pliki istnieją lokalnie to zostanie utworzona ich kopia zapasowa przed nadpisaniem."
-        echo -e "Wpisz ${GREEN}${BOLD}TAK${NC} aby kontynuować lub ${RED}${BOLD}NIE${NC} aby przerwać."
-        
-        read -r -p "Twoja decyzja: " confirmation < /dev/tty
-        
-        if [ "$confirmation" != "TAK" ]; then
-            log_info "Anulowano. Nic nie zostało zrobione."
-            exit 0
-        fi
-        echo "" 
-    fi
-    # ------------------------------
-    
-    # 2. Pobranie pliku ZIP
-    local tmp_zip=$(mktemp)
-    curl -# -o "$tmp_zip" "$BACKEND_URL/api/repos/$fetch_repo/download/$zip_name"
-    
-    # 3. Backup (jeśli nie użyto --force)
-    if [ $force -eq 0 ]; then
-        local timestamp=$(date +%Y%m%d_%H%M%S)
-        local backup_dir=".mygit_backup_$timestamp"
-        
-        if [ "$(ls -A . 2>/dev/null)" ]; then
-            log_warning "Robienie szybkiego backupu do: $backup_dir..."
-            mkdir -p "$backup_dir"
-            
-            if command -v rsync >/dev/null 2>&1; then
-                rsync -a --exclude=".mygit_backup_*" --exclude="node_modules" --exclude=".git" . "$backup_dir"
-            else
-                cp -r * "$backup_dir" 2>/dev/null || true
-            fi
-        fi
+        echo ""
+        echo -e "  ${YELLOW}${BOLD}Uwaga:${NC} lokalne pliki zostaną nadpisane (kopia zapasowa zostanie zrobiona)."
+        echo -e "  Kontynuować? [${GREEN}t${NC}/${RED}N${NC}]: \c"
+        read -r confirmation < /dev/tty
+        [[ "${confirmation,,}" != "t" && "${confirmation,,}" != "tak" ]] && { log_info "Anulowano."; exit 0; }
+        echo ""
     fi
 
-    # 4. Rozpakowanie
-    log_info "📦 Rozpakowywanie..."
-    
-    # Rozpakowujemy pliki
+    local tmp_zip
+    tmp_zip=$(mktemp)
+    spinner_start "Pobieranie archiwum..."
+    curl -s -o "$tmp_zip" "$BACKEND_URL/api/repos/$fetch_repo/download/$zip_name"
+    spinner_stop
+
+    if [ $force -eq 0 ] && [ "$(ls -A . 2>/dev/null)" ]; then
+        local backup_dir=".mygit_backup_$(date +%Y%m%d_%H%M%S)"
+        spinner_start "Tworzę kopię zapasową → $backup_dir..."
+        mkdir -p "$backup_dir"
+        if command -v rsync >/dev/null 2>&1; then
+            rsync -a --exclude=".mygit_backup_*" --exclude="node_modules" --exclude=".git" . "$backup_dir"
+        else
+            cp -r * "$backup_dir" 2>/dev/null || true
+        fi
+        spinner_stop
+        log_info "Kopia: ${DIM}$backup_dir${NC}"
+    fi
+
+    spinner_start "Rozpakowuję..."
     unzip -o -q "$tmp_zip" -d .
-    rm "$tmp_zip"
-    
-    # Sprawdzamy czy folder backupu fizycznie istnieje na dysku
-    if [ -n "$backup_dir" ] && [ -d "$backup_dir" ]; then
-        log_success "Pobrano snapshot pomyślnie."
-        echo -e "   ${BLUE}📂 Twoja kopia bezpieczeństwa jest tutaj:${NC} ${BOLD}$backup_dir${NC}"
-    else
-        log_success "Pobrano i nadpisano pliki (kopia nie była wymagana lub została pominięta)."
-    fi
-}
+    spinner_stop
+    rm -f "$tmp_zip"
 
-# --- NOWE KOMENDY ---
-
-cmd_delete_repo() {
-    echo -e "${RED}⚠️  UWAGA! To usunie CAŁE repozytorium '$REPO_NAME' z serwera i całą jego historię.${NC}"
-    read -p "Czy na pewno chcesz kontynuować? (wpisz nazwę repozytorium, aby potwierdzić): " confirm
-    
-    if [ "$confirm" != "$REPO_NAME" ]; then
-        log_info "Anulowano. Nazwa nie pasuje."
-        exit 0
-    fi
-    
-    local response=$(curl -s -X DELETE "$BACKEND_URL/api/repos/$REPO_NAME")
-    if echo "$response" | grep -q "error"; then
-        log_error "Błąd: $(echo "$response" | jq -r '.error')"
-    else
-        log_success "Repozytorium $REPO_NAME zostało usunięte."
-    fi
-}
-
-cmd_diff() {
-    local target="$1"
-    
-    # Jeśli podano argument -> Porównanie historyczne
-    if [ -n "$target" ]; then
-        log_info "Pobieranie diff dla snapshotu: $target (vs poprzedni)"
-        local json=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/diff/$target")
-        
-        if echo "$json" | grep -q "error"; then
-            log_error "Błąd diff: $(echo "$json" | jq -r '.error')"
-            return
-        fi
-        
-        echo -e "\n${CYAN}--- Zmiany w $target ---${NC}"
-        echo "$json" | jq -r '.added[]' 2>/dev/null | while read line; do echo -e "${GREEN}[+] $line${NC}"; done
-        echo "$json" | jq -r '.removed[]' 2>/dev/null | while read line; do echo -e "${RED}[-] $line${NC}"; done
-        echo "$json" | jq -r '.modified[]' 2>/dev/null | while read line; do echo -e "${YELLOW}[~] $line${NC}"; done
-        
-        local stats=$(echo "$json" | jq -r '.stats')
-        echo -e "\n${MAGENTA}Statystyki:${NC} $(echo $stats | jq -r '"+\(.added)  -\(.removed)  ~\(.modified)"')"
-        return
-    fi
-
-    # === NAPRAWA: Analiza lokalna (Dysk vs FAKTYCZNIE Ostatni Snapshot) ===
-    log_info "Analizowanie zmian na dysku (uwzględniając .mygitignore)..."
-    
-    # POPRAWKA: Pobieramy historię i bierzemy pierwszy element (najnowszy)
-    local history=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/history")
-    local latest_snap=$(echo "$history" | jq -r '.[0].file // empty')
-    
-    if [ -z "$latest_snap" ] || [ "$latest_snap" == "null" ]; then
-        log_error "Brak snapshotów na serwerze do porównania. Zrób najpierw 'mygit save'."
-        return
-    fi
-    
-    log_info "Porównuję z: $latest_snap"
-
-    # Używamy Heredoc, żeby uniknąć problemów z ukośnikami w Bashu
-    local local_json=$(node << 'EOF'
-const fs = require('fs');
-const crypto = require('crypto');
-const path = require('path');
-
-const map = {};
-let ignorePatterns = ['.git', 'node_modules', 'data/', '.env', '.DS_Store', 'Thumbs.db', 'dist/', 'build/', '.mygit_backup_*', '*.log'];
-
-// Załaduj wzorce z .mygitignore
-if (fs.existsSync('.mygitignore')) {
-    const content = fs.readFileSync('.mygitignore', 'utf8');
-    const lines = content.split('\n')
-        .map(l => l.trim())
-        .filter(l => l && !l.startsWith('#'));
-    ignorePatterns = [...new Set([...ignorePatterns, ...lines])];
-}
-
-// Uproszczone sprawdzanie ignorowania
-function shouldIgnore(name, relPath) {
-    return ignorePatterns.some(pat => {
-        // Zamiana wzorca z gwiazdką na wyrażenie regularne
-        const regexPat = pat
-            .replace(/\/$/, '') // usuń końcowy slash
-            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // eskejpuj znaki specjalne
-            .replace(/\\\*/g, '.*'); // zamień uratowaną gwiazdkę na .* (dowolny ciąg)
-        
-        const regex = new RegExp(`^${regexPat}(/.*)?$`);
-        
-        // Sprawdzamy czy ścieżka pasuje do wzorca lub czy wzorzec występuje w nazwie pliku
-        return regex.test(relPath) || regex.test(name);
-    });
-}
-
-function walk(dir) {
-    const items = fs.readdirSync(dir);
-    for (const item of items) {
-        const full = path.join(dir, item);
-        const rel = path.relative('.', full).replace(/\\/g, '/');
-        
-        if (shouldIgnore(item, rel)) continue;
-
-        const stat = fs.statSync(full);
-        if (stat.isDirectory()) {
-            walk(full);
-        } else {
-            const content = fs.readFileSync(full);
-            const hash = crypto.createHash('sha1').update(content).digest('hex');
-            map[rel] = hash;
-        }
-    }
-}
-
-try {
-    walk('.');
-    console.log(JSON.stringify(map));
-} catch (e) {
-    process.exit(1);
-}
-EOF
-)
-
-    if [ -z "$local_json" ]; then
-        log_error "Błąd podczas skanowania plików lokalnych."
-        return
-    fi
-
-    # Wysyłamy mapę do serwera
-    local response=$(curl -s -X POST -H "Content-Type: application/json" \
-        -d "$local_json" \
-        "$BACKEND_URL/api/repos/$REPO_NAME/diff-local")
-
-    if echo "$response" | grep -q "error"; then
-        log_error "Błąd serwera: $(echo "$response" | jq -r '.error')"
-        return
-    fi
-
-    echo -e "\n${CYAN}--- Zmiany lokalne względem $latest_snap ---${NC}"
-    
-    local added_count=$(echo "$response" | jq '.added | length')
-    local removed_count=$(echo "$response" | jq '.removed | length')
-    local modified_count=$(echo "$response" | jq '.modified | length')
-
-    if [ "$added_count" -eq 0 ] && [ "$removed_count" -eq 0 ] && [ "$modified_count" -eq 0 ]; then
-        echo -e "${GREEN}✅ Brak zmian - lokalny katalog jest identyczny z ostatnim snapshotem.${NC}"
-    else
-        echo "$response" | jq -r '.added[]' 2>/dev/null | while read line; do echo -e "${GREEN}[+] $line${NC}"; done
-        echo "$response" | jq -r '.removed[]' 2>/dev/null | while read line; do echo -e "${RED}[-] $line${NC}"; done
-        echo "$response" | jq -r '.modified[]' 2>/dev/null | while read line; do echo -e "${YELLOW}[~] $line${NC}"; done
-    fi
-    
-    echo -e "\n${MAGENTA}Statystyki:${NC} +$added_count  -$removed_count  ~$modified_count"
-}
-
-# --- NOWA FUNKCJA POMOCY ---
-cmd_usage() {
-    echo -e "${MAGENTA}${BOLD}🧠 mygit v2.2.1${NC}"
-    echo -e "${DIM}Lokalny system wersjonowania od Paffcia${NC}"
-    echo -e "\n${BOLD}Użycie:${NC}"
-    echo -e "  mygit <komenda> [argumenty]"
-    
-    echo -e "\n${YELLOW}${BOLD}📂 PODSTAWOWE I CYKL PRACY${NC}"
-    echo -e "  ${CYAN}init [opis]${NC}          Inicjalizuje nowe repozytorium"
-    echo -e "  ${CYAN}save [msg]${NC}           Tworzy i wysyła snapshot ${DIM}(alias: push)${NC}"
-    echo -e "  ${CYAN}get [repo] [snap.zip]${NC} Pobiera snapshot ${DIM}(najnowszy lub konkretny)${NC}"
-    echo -e "  ${CYAN}status${NC}               Pokazuje szczegółowe statystyki projektu"
-    echo -e "  ${CYAN}log${NC}                  Wyświetla historię snapshotów ${DIM}(alias: history, info)${NC}"
-    echo -e "  ${CYAN}list${NC}                 Lista wszystkich dostępnych repozytoriów"
-    echo -e "  ${CYAN}comment \"tekst\"${NC}      Aktualizuje opis repozytorium"
-
-    echo -e "\n${BLUE}${BOLD}🔍 NARZĘDZIA I ANALIZA${NC}"
-    echo -e "  ${CYAN}diff${NC}                 Status lokalny: co się zmieniło na dysku"
-    echo -e "  ${CYAN}diff [snap]${NC}          Porównuje wybrany snapshot z poprzednim"
-    echo -e "  ${CYAN}search \"fraza\"${NC}       Przeszukuje opisy w historii"
-    echo -e "  ${CYAN}restore <path>${NC}       Przywraca plik/folder z ostatniej wersji"
-    echo -e "  ${CYAN}cat <snap> <path>${NC}    Podgląd treści pliku bez pobierania całości"
-
-    echo -e "\n${GREEN}${BOLD}📁 KATEGORIE${NC}"
-    echo -e "  ${CYAN}category list${NC}        Lista dostępnych kategorii"
-    echo -e "  ${CYAN}category set <nazwa>${NC} Ustaw kategorię dla repo"
-    echo -e "  ${CYAN}category add <nazwa>${NC} Dodaj nową kategorię"
-    echo -e "  ${CYAN}category delete <id>${NC} Usuń kategorię"
-
-    echo -e "\n${WHITE}${BOLD}⚙️  KONFIGURACJA I ADMINISTRACJA${NC}"
-    echo -e "  ${CYAN}config [k] [v]${NC}       Zarządzanie ustawieniami"
-    echo -e "  ${RED}delete <file>${NC}        Usuwa pojedynczy snapshot z historii"
-    echo -e "  ${RED}${BOLD}delete-repo${NC}          Trwale usuwa CAŁE repozytorium z serwera"
-
-    echo -e "\n${DIM}Przykłady:${NC}"
-    echo -e "  ${DIM}mygit save \"Naprawiono logowanie\"${NC}"
-    echo -e "  ${DIM}mygit get                          ${NC}${GREEN}# pobierz najnowszy snapshot${NC}"
-    echo -e "  ${DIM}mygit get 2026-01-23_14-51-49.zip  ${NC}${GREEN}# pobierz konkretną wersję${NC}"
-    echo -e "  ${DIM}mygit get omnicore                 ${NC}${GREEN}# pobierz najnowszy z innego repo${NC}"
-    echo -e "  ${DIM}mygit get omnicore@2026-01-23.zip  ${NC}${GREEN}# konkretna wersja z innego repo${NC}"
-    echo -e "${DIM}WWW: http://localhost:3350${NC}"
-}
-
-cmd_cat() {
-    local snapshot="$1"
-    local filepath="$2"
-    
-    if [ -z "$snapshot" ] || [ -z "$filepath" ]; then
-        log_error "Użycie: mygit cat <snapshot_zip> <ścieżka/do/pliku>"
-        exit 1
-    fi
-    
-    local encoded_path=$(jq -nr --arg v "$filepath" '$v|@uri')
-    curl -s "$BACKEND_URL/api/repos/$REPO_NAME/file/$snapshot/$encoded_path"
-}
-
-cmd_config() {
-    local key="$1"
-    local value="$2"
-    
-    if [ -z "$key" ]; then
-        echo -e "${CYAN}Obecna konfiguracja ($CONFIG_FILE):${NC}"
-        cat "$CONFIG_FILE" | jq .
-        return
-    fi
-    
-    if [ -z "$value" ]; then
-        jq -r ".$key" "$CONFIG_FILE"
-    else
-        local tmp=$(mktemp)
-        jq --arg v "$value" ".$key = \$v" "$CONFIG_FILE" > "$tmp" && mv "$tmp" "$CONFIG_FILE"
-        log_success "Ustawiono $key = $value"
-    fi
+    log_success "Pobrano snapshot ${BOLD}$zip_name${NC}."
 }
 
 cmd_search() {
-    local term="$1"
-    if [ -z "$term" ]; then log_error "Podaj szukaną frazę"; exit 1; fi
-    
-    log_info "Szukanie '$term' w historii $REPO_NAME..."
-    
-    # Używamy tej samej ładnej funkcji co w LOG
-    curl -s "$BACKEND_URL/api/repos/$REPO_NAME/history" | \
-    jq -r --arg term "$term" '.[] | select(.message | test($term; "i")) | "\(.file)|\(.date)|\(.message)|\(.size)"' | \
+    check_server
+    local term="$*"
+    [ -z "$term" ] && { log_error "Podaj szukaną frazę"; exit 1; }
+    log_step "Szukam: \"${term}\" w ${REPO_NAME}"
+    spinner_start "Przeszukuję historię..."
+    local data
+    data=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/history")
+    spinner_stop
+
+    # Zapisz wyniki do pliku tymczasowego — unikamy subshell pipe który traci licznik idx
+    local tmp_results
+    tmp_results=$(mktemp /tmp/mygit_search_XXXXXX.txt)
+    # test($t;"i") nie działa z polskimi znakami — ascii_downcase + contains jest niezawodny
+    local term_lower
+    term_lower=$(echo "$term" | tr '[:upper:]' '[:lower:]')
+    echo "$data" | jq -r --arg t "$term_lower" \
+        '.[] | select(.message | ascii_downcase | contains($t)) | "\(.file)|\(.date)|\(.message)|\(.size)"' \
+        > "$tmp_results"
+
+    local idx=0
     while IFS='|' read -r file date msg size; do
-        print_commit_entry "$file" "$date" "$msg" "$size"
-    done
-    echo -e "${DIM}──────────────────────────────────────────────────────────────${NC}"
+        ((idx++))
+        print_commit_entry "$file" "$date" "$msg" "$size" "$idx"
+    done < "$tmp_results"
+    rm -f "$tmp_results"
+
+    echo -e "$SEP"
+    if [ "$idx" -eq 0 ]; then
+        echo -e "  ${DIM}Brak wyników dla: \"${term}\"${NC}"
+    else
+        echo -e "  ${DIM}Znaleziono: ${idx} snapshot(ów)${NC}"
+    fi
 }
 
-# --- GŁÓWNA OBSŁUGA ---
+cmd_cat() {
+    check_server
+    [ -z "$1" ] || [ -z "$2" ] && { log_error "Użycie: mygit cat <snapshot_id_lub_manifest_id> <ścieżka/do/pliku>"; exit 1; }
+    local encoded
+    encoded=$(jq -nr --arg v "$2" '$v|@uri')
+    # Działa zarówno dla starych ZIP-ów (np. 20260425_112000_000.zip)
+    # jak i dla nowych manifestów delta (np. 2026-04-25T11-20-00-000)
+    curl -s "$BACKEND_URL/api/repos/$REPO_NAME/file/$1/$encoded"
+}
+
+cmd_file_log() {
+    check_server
+    [ -z "$1" ] && { log_error "Użycie: mygit file-log <ścieżka/do/pliku>"; exit 1; }
+    local encoded
+    encoded=$(jq -nr --arg v "$1" '$v|@uri')
+    log_step "Historia pliku: ${CYAN}$1${NC}  ${DIM}@ ${REPO_NAME}${NC}"
+    spinner_start "Pobieranie historii..."
+    local data
+    data=$(curl -s "$BACKEND_URL/api/repos/$REPO_NAME/file-log?path=$encoded")
+    spinner_stop
+
+    echo "$data" | grep -q '"error"' && { log_error "$(echo "$data" | jq -r '.error')"; exit 1; }
+
+    local count
+    count=$(echo "$data" | jq 'length')
+    [ "$count" -eq 0 ] && { log_info "Plik nie istnieje w żadnym snapsocie delta."; exit 0; }
+
+    echo -e "$SEP"
+    for i in $(seq 0 $((count - 1))); do
+        local snap_id msg date_raw hash
+        snap_id=$(echo "$data" | jq -r ".[$i].id")
+        msg=$(echo "$data" | jq -r ".[$i].message")
+        date_raw=$(echo "$data" | jq -r ".[$i].created_at")
+        hash=$(echo "$data" | jq -r ".[$i].hash" | cut -c1-12)
+        echo -e "  ${ICO_SNAP} ${BOLD}${CYAN}${snap_id}${NC}"
+        echo -e "     ${DIM}💬 $msg   #$hash${NC}"
+    done
+    echo -e "$SEP"
+    echo -e "  ${DIM}Łącznie: $count snapshotów z tym plikiem${NC}"
+}
+
+cmd_config() {
+    local key="$1" value="$2"
+    if [ -z "$key" ]; then
+        echo -e "\n$SEP"
+        echo -e "  ${BOLD}Konfiguracja${NC}  ${DIM}($CONFIG_FILE)${NC}"
+        echo -e "$SEP"
+        echo -e "  HOST  =  ${CYAN}$(grep '^HOST=' "$CONFIG_FILE" | cut -d= -f2)${NC}"
+        echo -e "  PORT  =  ${CYAN}$(grep '^PORT=' "$CONFIG_FILE" | cut -d= -f2)${NC}"
+        echo -e "  URL   =  ${DIM}$BACKEND_URL${NC}"
+        echo -e "$SEP"
+        return
+    fi
+    key="${key^^}"
+    [[ "$key" != "HOST" && "$key" != "PORT" ]] && { log_error "Nieznany klucz: $key (dostępne: HOST, PORT)"; exit 1; }
+    if [ -z "$value" ]; then
+        grep "^${key}=" "$CONFIG_FILE" | cut -d= -f2
+    else
+        grep -q "^${key}=" "$CONFIG_FILE" 2>/dev/null \
+            && sed -i "s|^${key}=.*|${key}=${value}|" "$CONFIG_FILE" \
+            || echo "${key}=${value}" >> "$CONFIG_FILE"
+        log_success "Ustawiono ${BOLD}$key${NC} = ${CYAN}$value${NC}"
+    fi
+}
+
+cmd_category() {
+    local action="$1"; shift
+    case "$action" in
+        list)
+            log_step "Kategorie"
+            curl -s "$BACKEND_URL/api/categories" | jq -r '.categories[] | "\(.icon) \(.name)|\(.id)|\(.color)"' | \
+            while IFS='|' read -r name id color; do
+                echo -e "  ${ICO_SNAP} ${BOLD}$name${NC}  ${DIM}[$id]  $color${NC}"
+            done ;;
+        set)
+            [ -z "$1" ] && { log_error "Podaj nazwę kategorii"; exit 1; }
+            local cats cat_id json resp
+            cats=$(curl -s "$BACKEND_URL/api/categories")
+            cat_id=$(echo "$cats" | jq -r --arg v "$1" '.categories[]|select(.id==$v or .name==$v)|.id' | head -1)
+            [ -z "$cat_id" ] || [ "$cat_id" = "null" ] && { log_error "Nie znaleziono kategorii: $1"; exit 1; }
+            json=$(jq -n --arg cat "$cat_id" '{category:$cat}')
+            resp=$(curl -s -X POST -H "Content-Type: application/json" -d "$json" "$BACKEND_URL/api/repos/$REPO_NAME/category")
+            echo "$resp" | grep -q '"error"' && { log_error "$(echo "$resp" | jq -r '.error')"; exit 1; }
+            log_success "Kategoria ustawiona: ${BOLD}$cat_id${NC}" ;;
+        add)
+            [ -z "$1" ] && { log_error "Podaj nazwę kategorii"; exit 1; }
+            local json resp
+            json=$(jq -n --arg n "$1" --arg c "${2:-#64748b}" --arg i "${3:-📁}" '{name:$n,color:$c,icon:$i}')
+            resp=$(curl -s -X POST -H "Content-Type: application/json" -d "$json" "$BACKEND_URL/api/categories")
+            echo "$resp" | grep -q '"error"' && { log_error "$(echo "$resp" | jq -r '.error')"; exit 1; }
+            log_success "Dodano kategorię: ${BOLD}$1${NC}" ;;
+        delete|remove|rm)
+            [ -z "$1" ] && { log_error "Podaj ID kategorii"; exit 1; }
+            echo -e "  Usunąć kategorię ${BOLD}$1${NC}? [${GREEN}t${NC}/${RED}N${NC}]: \c"
+            read -r c < /dev/tty
+            [[ "${c,,}" != "t" && "${c,,}" != "tak" ]] && { log_info "Anulowano."; exit 0; }
+            resp=$(curl -s -X DELETE "$BACKEND_URL/api/categories/$1")
+            echo "$resp" | grep -q '"error"' && { log_error "$(echo "$resp" | jq -r '.error')"; exit 1; }
+            log_success "Kategoria usunięta." ;;
+        *)
+            echo -e "  Użycie: ${CYAN}mygit category <list|set|add|delete>${NC}" ;;
+    esac
+}
+
+cmd_usage() {
+    local ver
+    ver=$(grep -m1 'Wersja:' "$0" | grep -oP '\d+\.\d+\.\d+')
+    local W=22  # szerokość kolumny komendy
+
+    printf "\n"
+    printf "  ${BOLD}${MAGENTA}🧠 mygit${NC}  ${DIM}v%s${NC}  ${DIM}%s${NC}\n" "$ver" "$BACKEND_URL"
+    printf "  ${DIM}repo: ${CYAN}%s${NC}\n" "$REPO_NAME"
+    printf "\n"
+
+    # helper: wiersz komendy
+    _row() {
+        local color="$1" cmd="$2" args="$3" desc="$4"
+        local pad=$(( W - ${#cmd} - ${#args} - 1 ))
+        [ $pad -lt 1 ] && pad=1
+        printf "  ${color}%-*s${NC}${DIM}%s${NC}  %s\n" "$W" "$cmd $args" "" "$desc"
+        # prostsze podejście — wyrównanie przez printf
+    }
+
+    printf "  ${BOLD}${YELLOW}── Podstawowe ────────────────────────────────────────────${NC}\n"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "init [opis]"             "Utwórz nowe repozytorium na serwerze"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "save [wiadomość]"        "Zapisz snapshot bieżącego katalogu"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "get  [repo|snap|r@s]"    "Pobierz snapshot (najnowszy lub konkretny)"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "diff [snap]"             "Zmiany na dysku vs snapshot / między snapshotami"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "log"                     "Historia snapshotów bieżącego repo"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "status"                  "Statystyki i info o projekcie"
+    printf "\n"
+    printf "  ${BOLD}${BLUE}── Repozytoria i pliki ───────────────────────────────────${NC}\n"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "list"                    "Lista wszystkich repozytoriów"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "search \"fraza\""          "Szukaj snapshotu po opisie"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "restore <ścieżka>"       "Przywróć plik/folder (opcja --commit=<id>)"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "cat <snap> <plik>"       "Wyświetl plik ze snapshotu (ZIP lub manifest)"
+    printf "  ${CYAN}%-${W}s${NC} %s\\n" "file-log <plik>"         "Historia zmian pliku (delta snapshots)"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "comment \"tekst\""         "Ustaw opis repozytorium"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "category <akcja>"        "Zarządzaj kategoriami (list/set/add/delete)"
+    printf "\n"
+    printf "  ${BOLD}${WHITE}── Konfiguracja i admin ──────────────────────────────────${NC}\n"
+    printf "  ${CYAN}%-${W}s${NC} %s\n" "config [klucz] [wartość]" "Pokaż lub zmień HOST / PORT"
+    printf "  ${RED}%-${W}s${NC} %s\n"  "delete <snap>"            "Usuń pojedynczy snapshot"
+    printf "  ${RED}%-${W}s${NC} %s\n"  "delete-repo"              "Usuń całe repozytorium (nieodwracalne)"
+    printf "\n"
+    printf "  ${BOLD}${DIM}── Przykłady ──────────────────────────────────────────────${NC}\n"
+    printf "  ${DIM}mygit save \"Naprawiono logowanie\"${NC}\n"
+    printf "  ${DIM}mygit get                         ${NC}${GREEN}# najnowszy snapshot${NC}\n"
+    printf "  ${DIM}mygit get my-repo                 ${NC}${GREEN}# najnowszy z innego repo${NC}\n"
+    printf "  ${DIM}mygit get my-repo@2026-01-23.zip  ${NC}${GREEN}# konkretna wersja${NC}\n"
+    printf "  ${DIM}mygit diff                        ${NC}${GREEN}# co zmieniłem lokalnie${NC}\n"
+    printf "\n"
+    printf "  ${DIM}Ignore: .mygitignore (priorytet) lub .gitignore (fallback)${NC}\n"
+    printf "\n"
+}
+
+# ─────────────────────────────────────────────────────────────────
 check_deps
 load_config
 
@@ -735,21 +871,22 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    init)        cmd_init "$*" ;;
-    save|push)   cmd_save "$*" ;;
-    get|pull)    cmd_get "$@" ;;
-    list|repos)  cmd_list ;;
-    status)      cmd_status ;;
-    log|history|info) cmd_log ;;
-    comment)     cmd_comment "$*" ;;
-    delete)      cmd_delete "$1" ;;
-    delete-repo) cmd_delete_repo ;;
-    diff)        cmd_diff "$1" ;;
-    cat)         cmd_cat "$1" "$2" ;;
-    config)      cmd_config "$1" "$2" ;;
-    restore)     cmd_restore "$1" ;;
-    search)      cmd_search "$1" ;;
-    category)    cmd_category "$@" ;;
-    help|--help|-h) cmd_usage ;; 
-    *)           cmd_usage; exit 1 ;;
+    init)              cmd_init "$*" ;;
+    save|push)         cmd_save "$*" ;;
+    get|pull)          cmd_get "$@" ;;
+    list|repos)        cmd_list ;;
+    status)            cmd_status ;;
+    log|history|info)  cmd_log ;;
+    diff)              cmd_diff "$1" ;;
+    comment)           cmd_comment "$*" ;;
+    delete)            cmd_delete "$1" ;;
+    delete-repo)       cmd_delete_repo ;;
+    restore)           cmd_restore "$@" ;;
+    search)            cmd_search "$@" ;;
+    cat)               cmd_cat "$1" "$2" ;;
+    file-log)          cmd_file_log "$1" ;;
+    config)            cmd_config "$1" "$2" ;;
+    category)          cmd_category "$@" ;;
+    help|--help|-h)    cmd_usage ;;
+    *)                 cmd_usage; exit 1 ;;
 esac
